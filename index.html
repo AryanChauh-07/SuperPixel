@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pixel Mirio - Retro Arcade Platformer</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="game-wrapper">
+        <!-- Modern Retro Arcade Header -->
+        <header class="arcade-header">
+            <div class="brand">
+                <span class="pixel-badge">16-BIT CLASSIC &bull; 25 LEVELS</span>
+                <h1>PIXEL MIRIO</h1>
+            </div>
+            <div class="header-controls">
+                <button id="home-btn" class="icon-btn nav-header-btn" title="Home Screen">
+                    <span>🏠 HOME</span>
+                </button>
+                <button id="restart-btn" class="icon-btn nav-header-btn" title="Restart Level">
+                    <span>🔄 RESTART</span>
+                </button>
+                <button id="level-select-btn" class="icon-btn level-header-btn" title="Level Select">
+                    <span>MAP</span>
+                </button>
+                <button id="shop-btn" class="icon-btn shop-header-btn" title="Open Shop (S)">
+                    <span>🛒 SHOP</span>
+                </button>
+                <button id="sound-btn" class="icon-btn" title="Toggle Sound (M)">
+                    <span id="sound-icon">🔊</span>
+                </button>
+                <button id="pause-btn" class="icon-btn" title="Pause (P)">
+                    <span>⏸</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Fullscreen Game Container -->
+        <div class="game-container" id="game-container">
+            <!-- Top Retro HUD -->
+            <div class="hud" id="hud">
+                <div class="hud-item">
+                    <span class="hud-label">MARIO</span>
+                    <span class="hud-value" id="hud-score">000000</span>
+                </div>
+                <div class="hud-item">
+                    <span class="hud-label">COINS</span>
+                    <span class="hud-value coin-val"><span class="coin-icon">🪙</span> x<span id="hud-coins">00</span></span>
+                </div>
+                <div class="hud-item">
+                    <span class="hud-label">WORLD</span>
+                    <span class="hud-value" id="hud-world">1-1</span>
+                </div>
+                <div class="hud-item">
+                    <span class="hud-label">TIME</span>
+                    <span class="hud-value" id="hud-time">400</span>
+                </div>
+                <div class="hud-item">
+                    <span class="hud-label">LIVES</span>
+                    <span class="hud-value" id="hud-lives">❤️ x3</span>
+                </div>
+            </div>
+
+            <!-- HTML5 Canvas -->
+            <canvas id="game-canvas"></canvas>
+
+            <!-- Overlay Screens -->
+            <!-- Start / Title Screen -->
+            <div class="overlay-screen active" id="start-screen">
+                <div class="title-logo">
+                    <span class="mario-red">PIXEL</span>
+                    <span class="mario-yellow">MI</span>
+                    <span class="mario-green">RIO</span>
+                </div>
+                <p class="subtitle">Collect Coins &bull; 25 Levels &bull; 5 World Themes</p>
+
+                <div class="preview-hero">
+                    <div class="mario-preview-badge">🪙 Collect Sky Coins & Conquer 25 Worlds</div>
+                </div>
+
+                <div class="menu-actions">
+                    <button class="primary-btn" id="start-btn">
+                        <span>PLAY GAME</span>
+                        <small>Press ENTER or Space</small>
+                    </button>
+                    <button class="secondary-btn" id="title-levels-btn">SELECT LEVEL (1-25)</button>
+                </div>
+
+                <div class="controls-guide">
+                    <h3>CONTROLS</h3>
+                    <div class="keys-grid">
+                        <div class="key-item"><kbd>◄</kbd><kbd>►</kbd> or <kbd>A</kbd><kbd>D</kbd> <span>Move Left / Right</span></div>
+                        <div class="key-item"><kbd>▲</kbd> / <kbd>SPACE</kbd> / <kbd>W</kbd> <span>Jump</span></div>
+                        <div class="key-item"><kbd>▼</kbd> or <kbd>S</kbd> <span>Crouch / Down</span></div>
+                        <div class="key-item"><kbd>SHIFT</kbd> / <kbd>X</kbd> <span>Run Fast</span></div>
+                        <div class="key-item"><kbd>S</kbd> <span>Open Item Shop</span></div>
+                        <div class="key-item"><kbd>M</kbd> <span>Mute Audio</span></div>
+                        <div class="key-item"><kbd>P</kbd> <span>Pause Game</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 25 Level Select Modal Screen -->
+            <div class="overlay-screen hidden" id="level-screen">
+                <h2 class="shop-title">🗺️ SELECT LEVEL</h2>
+                <p class="shop-subtitle">Choose from 25 Levels across 5 Worlds</p>
+
+                <div class="level-select-grid" id="level-grid">
+                    <!-- 25 Level Cards generated dynamically by game.js -->
+                </div>
+
+                <button class="primary-btn" id="close-level-btn">BACK TO MENU</button>
+            </div>
+
+            <!-- Item Shop Modal Screen -->
+            <div class="overlay-screen hidden" id="shop-screen">
+                <h2 class="shop-title">🛒 ITEM SHOP</h2>
+                <p class="shop-subtitle">Your Coin Balance: <span class="coin-val">🪙 <span id="shop-coin-count">0</span></span></p>
+
+                <div class="shop-grid">
+                    <div class="shop-card">
+                        <div class="item-icon">🍄</div>
+                        <h4>Super Mushroom</h4>
+                        <p>Grow into Big Mario (+1 Hit Point)</p>
+                        <button class="buy-btn" id="buy-shroom-btn">Buy (5 🪙)</button>
+                    </div>
+                    <div class="shop-card">
+                        <div class="item-icon">❤️</div>
+                        <h4>Extra Life</h4>
+                        <p>Gain +1 Extra Life</p>
+                        <button class="buy-btn" id="buy-life-btn">Buy (10 🪙)</button>
+                    </div>
+                    <div class="shop-card">
+                        <div class="item-icon">⚡</div>
+                        <h4>Speed Boots</h4>
+                        <p>Permanent Sprint Speed Boost</p>
+                        <button class="buy-btn" id="buy-speed-btn">Buy (8 🪙)</button>
+                    </div>
+                    <div class="shop-card">
+                        <div class="item-icon">⭐</div>
+                        <h4>Invincibility Star</h4>
+                        <p>15s Rainbow Invincibility Star</p>
+                        <button class="buy-btn" id="buy-star-btn">Buy (15 🪙)</button>
+                    </div>
+                </div>
+
+                <button class="primary-btn" id="close-shop-btn">RETURN TO GAME</button>
+            </div>
+
+            <!-- Pause Screen -->
+            <div class="overlay-screen hidden" id="pause-screen">
+                <h2>PAUSED</h2>
+                <button class="primary-btn" id="resume-btn">RESUME</button>
+                <div class="pause-actions">
+                    <button class="secondary-btn" id="open-levels-pause-btn">SELECT LEVEL 🗺️</button>
+                    <button class="secondary-btn" id="open-shop-pause-btn">OPEN SHOP 🛒</button>
+                </div>
+                <div class="pause-actions">
+                    <button class="secondary-btn" id="home-pause-btn">HOME 🏠</button>
+                    <button class="secondary-btn" id="restart-pause-btn">RESTART 🔄</button>
+                </div>
+            </div>
+
+            <!-- Game Over Screen -->
+            <div class="overlay-screen hidden" id="gameover-screen">
+                <h2 class="danger-title">GAME OVER</h2>
+                <p>Final Score: <span id="final-score">000000</span></p>
+                <div class="gameover-actions">
+                    <button class="primary-btn" id="retry-btn">TRY AGAIN 🔄</button>
+                    <button class="secondary-btn" id="home-gameover-btn">HOME PAGE 🏠</button>
+                </div>
+            </div>
+
+            <!-- Stage Victory Screen -->
+            <div class="overlay-screen hidden" id="victory-screen">
+                <h2 class="success-title">STAGE CLEAR!</h2>
+                <p class="victory-sub" id="victory-stage-text">Level 1-1 Cleared!</p>
+                <div class="victory-stats">
+                    <p>Total Score: <span id="victory-score">000000</span></p>
+                    <p>Time Remaining: <span id="victory-time">0</span>s</p>
+                </div>
+                <button class="primary-btn" id="next-btn">NEXT LEVEL ►</button>
+            </div>
+
+            <!-- Grand Game Ending Screen (Level 25 Victory) -->
+            <div class="overlay-screen hidden" id="ending-screen">
+                <div class="ending-trophy">🏆</div>
+                <h2 class="success-title">CONGRATULATIONS!</h2>
+                <p class="victory-sub">YOU BEAT ALL 25 LEVELS OF PIXEL MIRIO!</p>
+                <div class="victory-stats">
+                    <p>GRAND CAMPAIGN SCORE: <span id="ending-score">000000</span></p>
+                    <p>WORLD 5-5 COMPLETED!</p>
+                </div>
+                <button class="primary-btn" id="ending-home-btn">HOME PAGE 🏠</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Scripts -->
+    <script src="js/audio.js"></script>
+    <script src="js/sprites.js"></script>
+    <script src="js/physics.js"></script>
+    <script src="js/entities.js"></script>
+    <script src="js/level.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
