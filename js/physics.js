@@ -29,16 +29,38 @@ const PhysicsEngine = {
             if (entity.vy > this.maxFallSpeed) entity.vy = this.maxFallSpeed;
         }
 
-        // Horizontal Movement & Collision Resolution
-        entity.x += entity.vx;
-        this.resolveHorizontalCollisions(entity, level);
+        // Horizontal Movement & Sub-stepping for Collision Resolution
+        const maxSubStep = this.tileSize / 2; // Limit step size to prevent tunneling
+        let remainingVx = entity.vx;
+        while (Math.abs(remainingVx) > 0.001) { // Use a small epsilon for float comparison
+            const step = Math.sign(remainingVx) * Math.min(Math.abs(remainingVx), maxSubStep);
+            entity.x += step;
+            this.resolveHorizontalCollisions(entity, level);
+            // If collision resolution set entity.vx to 0, stop further horizontal movement for this frame
+            if (entity.vx === 0) {
+                remainingVx = 0;
+            } else {
+                remainingVx -= step;
+            }
+        }
 
-        // Vertical Movement & Collision Resolution
-        entity.y += entity.vy;
+        // Vertical Movement & Sub-stepping for Collision Resolution
+        // Reset isGrounded before vertical movement to correctly detect landing in resolveVerticalCollisions
         entity.isGrounded = false;
-        this.resolveVerticalCollisions(entity, level);
+        let remainingVy = entity.vy;
+        while (Math.abs(remainingVy) > 0.001) {
+            const step = Math.sign(remainingVy) * Math.min(Math.abs(remainingVy), maxSubStep);
+            entity.y += step;
+            this.resolveVerticalCollisions(entity, level);
+            // If collision resolution set entity.vy to 0, stop further vertical movement for this frame
+            if (entity.vy === 0) {
+                remainingVy = 0;
+            } else {
+                remainingVy -= step;
+            }
+        }
     },
-
+    
     resolveHorizontalCollisions(entity, level) {
         const bounds = entity.getBounds();
         const startTileX = Math.floor(bounds.x / this.tileSize);
