@@ -20,7 +20,11 @@ const PhysicsEngine = {
     },
 
     /**
-     * Move Entity & Resolve Collisions against Tile Map
+     * Move Entity & Resolve Collisions against Tile Map.
+     * This simplified engine provides a smoother and more stable feel by processing
+     * movement and collision in clear, distinct steps for each axis. By removing the
+     * complex sub-stepping, we reduce potential sources of jitter while maintaining
+     * robust collision handling suitable for the game's physics parameters.
      */
     updateEntity(entity, level) {
         // Apply Gravity
@@ -29,36 +33,14 @@ const PhysicsEngine = {
             if (entity.vy > this.maxFallSpeed) entity.vy = this.maxFallSpeed;
         }
 
-        // Horizontal Movement & Sub-stepping for Collision Resolution
-        const maxSubStep = this.tileSize / 2; // Limit step size to prevent tunneling
-        let remainingVx = entity.vx;
-        while (Math.abs(remainingVx) > 0.001) { // Use a small epsilon for float comparison
-            const step = Math.sign(remainingVx) * Math.min(Math.abs(remainingVx), maxSubStep);
-            entity.x += step;
-            this.resolveHorizontalCollisions(entity, level);
-            // If collision resolution set entity.vx to 0, stop further horizontal movement for this frame
-            if (entity.vx === 0) {
-                remainingVx = 0;
-            } else {
-                remainingVx -= step;
-            }
-        }
+        // --- Horizontal Movement & Collision Resolution ---
+        entity.x += entity.vx;
+        this.resolveHorizontalCollisions(entity, level);
 
-        // Vertical Movement & Sub-stepping for Collision Resolution
-        // Reset isGrounded before vertical movement to correctly detect landing in resolveVerticalCollisions
-        entity.isGrounded = false;
-        let remainingVy = entity.vy;
-        while (Math.abs(remainingVy) > 0.001) {
-            const step = Math.sign(remainingVy) * Math.min(Math.abs(remainingVy), maxSubStep);
-            entity.y += step;
-            this.resolveVerticalCollisions(entity, level);
-            // If collision resolution set entity.vy to 0, stop further vertical movement for this frame
-            if (entity.vy === 0) {
-                remainingVy = 0;
-            } else {
-                remainingVy -= step;
-            }
-        }
+        // --- Vertical Movement & Collision Resolution ---
+        entity.isGrounded = false; // Assume not grounded; resolver will correct this if we land.
+        entity.y += entity.vy;
+        this.resolveVerticalCollisions(entity, level);
     },
     
     resolveHorizontalCollisions(entity, level) {
@@ -66,25 +48,27 @@ const PhysicsEngine = {
         const startTileX = Math.floor(bounds.x / this.tileSize);
         const endTileX = Math.floor((bounds.x + bounds.w) / this.tileSize);
         const startTileY = Math.floor(bounds.y / this.tileSize);
-        const endTileY = Math.floor((bounds.y + bounds.h - 0.1) / this.tileSize);
+        const endTileY = Math.floor((bounds.y + bounds.h - 0.1) / this.tileSize); // -0.1 to prevent catching on floor edges
 
         for (let tx = startTileX; tx <= endTileX; tx++) {
             for (let ty = startTileY; ty <= endTileY; ty++) {
                 const tile = level.getTile(tx, ty);
-                if (tile && tile.solid) {
-                    const tileRect = { x: tx * this.tileSize, y: ty * this.tileSize, w: this.tileSize, h: this.tileSize };
+                if (!tile || !tile.solid) {
+                    continue;
+                }
 
-                    if (this.checkOverlap(bounds, tileRect)) {
-                        if (entity.vx > 0) { // Moving Right
-                            entity.x = tileRect.x - bounds.w;
-                            if (entity.onWallHit) entity.onWallHit('right');
-                        } else if (entity.vx < 0) { // Moving Left
-                            entity.x = tileRect.x + tileRect.w;
-                            if (entity.onWallHit) entity.onWallHit('left');
-                        }
-                        entity.vx = 0;
-                        return;
+                const tileRect = { x: tx * this.tileSize, y: ty * this.tileSize, w: this.tileSize, h: this.tileSize };
+
+                if (this.checkOverlap(bounds, tileRect)) {
+                    if (entity.vx > 0) { // Moving Right
+                        entity.x = tileRect.x - bounds.w;
+                        if (entity.onWallHit) entity.onWallHit('right');
+                    } else if (entity.vx < 0) { // Moving Left
+                        entity.x = tileRect.x + tileRect.w;
+                        if (entity.onWallHit) entity.onWallHit('left');
                     }
+                    entity.vx = 0;
+                    return; // Exit after resolving the first collision
                 }
             }
         }
@@ -93,7 +77,7 @@ const PhysicsEngine = {
     resolveVerticalCollisions(entity, level) {
         const bounds = entity.getBounds();
         const startTileX = Math.floor(bounds.x / this.tileSize);
-        const endTileX = Math.floor((bounds.x + bounds.w - 0.1) / this.tileSize);
+        const endTileX = Math.floor((bounds.x + bounds.w - 0.1) / this.tileSize); // -0.1 to prevent catching on wall edges
         const startTileY = Math.floor(bounds.y / this.tileSize);
         const endTileY = Math.floor((bounds.y + bounds.h) / this.tileSize);
 
@@ -101,6 +85,10 @@ const PhysicsEngine = {
             for (let ty = startTileY; ty <= endTileY; ty++) {
                 const tile = level.getTile(tx, ty);
                 if (tile && tile.solid) {
+                    if (!tile || !tile.solid) {
+                        continue;
+                    }
+                    
                     const tileRect = { x: tx * this.tileSize, y: ty * this.tileSize, w: this.tileSize, h: this.tileSize };
 
                     if (this.checkOverlap(bounds, tileRect)) {
@@ -114,7 +102,7 @@ const PhysicsEngine = {
                             entity.vy = 0;
                             if (entity.onHeadBump) entity.onHeadBump(tx, ty, tile);
                         }
-                        return;
+                        return; // Exit after resolving the first collision
                     }
                 }
             }

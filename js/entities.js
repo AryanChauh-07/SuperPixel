@@ -252,6 +252,66 @@ class Mushroom extends Entity {
 }
 
 /* ═══════════════════════════════════════════════════
+   FlyingEnemy - A simple enemy that flies horizontally
+   and bobs up and down.
+═══════════════════════════════════════════════════ */
+class FlyingEnemy extends Entity {
+    constructor(x, y) {
+        super(x, y, 28, 20); // Width and height for a flying enemy
+        this.vx = -1.5; // Initial horizontal speed
+        this.baseY = y; // Base Y position for bobbing
+        this.amplitude = 15; // How much it bobs up and down
+        this.frequency = 0.05; // How fast it bobs
+        this.animTimer = 0; // For animation and bobbing
+        this.isDead = false; // For consistency with other enemies
+        this.remove = false; // For removal from game
+    }
+
+    // Flying enemies do not use PhysicsEngine.updateEntity directly
+    // as they are not affected by gravity or grounding.
+
+    squish() {
+        // When stomped or hit by star, it just gets removed
+        this.isDead = true;
+        this.remove = true;
+    }
+
+    update(level) {
+        // Horizontal movement
+        this.x += this.vx;
+
+        // Vertical bobbing movement
+        this.animTimer++; // Increment timer for sine wave
+        this.y = this.baseY + Math.sin(this.animTimer * this.frequency) * this.amplitude;
+
+        // Manual horizontal collision detection against solid tiles
+        const bounds = this.getBounds();
+        const tileSize = PhysicsEngine.tileSize;
+
+        // Check for collision with tiles on its path
+        const startTileX = Math.floor(bounds.x / tileSize);
+        const endTileX = Math.floor((bounds.x + bounds.w) / tileSize);
+        const startTileY = Math.floor(bounds.y / tileSize);
+        const endTileY = Math.floor((bounds.y + bounds.h) / tileSize);
+
+        for (let ty = startTileY; ty <= endTileY; ty++) {
+            for (let tx = startTileX; tx <= endTileX; tx++) {
+                const tile = level.getTile(tx, ty);
+                if (tile && tile.solid && PhysicsEngine.checkOverlap(bounds, { x: tx * tileSize, y: ty * tileSize, w: tileSize, h: tileSize })) {
+                    this.vx = -this.vx; // Reverse direction
+                    this.x += this.vx; // Adjust position immediately to prevent sticking
+                    return; // Resolve only one collision per frame
+                }
+            }
+        }
+    }
+
+    draw(ctx) {
+        SpriteRenderer.drawFlyingEnemy(ctx, this.x, this.y, Math.floor(this.animTimer / 5) % 2);
+    }
+}
+
+/* ═══════════════════════════════════════════════════
    Collectible Coin (animated)
 ═══════════════════════════════════════════════════ */
 class CollectibleCoin {

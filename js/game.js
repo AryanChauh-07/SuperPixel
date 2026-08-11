@@ -360,9 +360,18 @@ class GameEngine {
             }
 
             /* Camera */
+            // The target x-position for the camera is ahead of the player, creating a leading space.
             const targetCameraX = this.player.x - this.virtualWidth * 0.4;
+            
+            // Only move the camera forward.
             if (targetCameraX > this.cameraX) {
-                this.cameraX = Math.min(targetCameraX, (this.level.width * 30) - this.virtualWidth);
+                // Use linear interpolation (lerp) for a smooth "catch-up" effect.
+                // A smaller smoothing factor (e.g., 0.05) results in a smoother, more delayed camera.
+                const smoothing = 0.08;
+                const newCameraX = this.cameraX + (targetCameraX - this.cameraX) * smoothing;
+
+                // Clamp the camera to the level's right boundary.
+                this.cameraX = Math.min(newCameraX, (this.level.width * 30) - this.virtualWidth);
             }
 
             /* Items (mushrooms) */
@@ -447,6 +456,17 @@ class GameEngine {
                     } else if (enemy.isShell && !enemy.shellMoving) {
                         enemy.stomp();
                         try { AudioSystem.playBump(); } catch(e) {}
+                    } else if (!enemy.isShell) {
+                        const died = this.player.takeDamage(AudioSystem);
+                        if (died) this.handlePlayerDeath();
+                    }
+                } else if (enemy instanceof FlyingEnemy) { // New Flying Enemy collision logic
+                    if (isStomp) {
+                        enemy.squish();
+                        this.player.vy = -6.5; // Bounce player up
+                        this.score += 100;
+                        try { AudioSystem.playStomp(); } catch(e) {}
+                        this.particles.push(new FloatingText(enemy.x - this.cameraX, enemy.y - 12, '+100', '#ffffff'));
                     } else if (!enemy.isShell) {
                         const died = this.player.takeDamage(AudioSystem);
                         if (died) this.handlePlayerDeath();

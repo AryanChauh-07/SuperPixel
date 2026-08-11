@@ -81,7 +81,11 @@ class Level {
         const enemyCount = Math.min(36, 6 + this.levelNum * 3);
         for (let i = 0; i < enemyCount; i++) {
             const ex = 25 + Math.floor((i * (this.width - 55)) / enemyCount);
-            if (i % 3 === 0) {
+            if (i % 4 === 0 && this.levelNum >= 2) { // Introduce flying enemies from level 2 onwards
+                const flyingEnemy = new FlyingEnemy(ex * this.tileSize, (H - 8) * this.tileSize); // Spawn higher up
+                flyingEnemy.vx = (i % 2 === 0 ? 1 : -1) * (1.0 + this.levelNum * 0.05); // Vary speed and direction
+                this.enemies.push(flyingEnemy);
+            } else if (i % 3 === 0) {
                 const koopa = new Koopa(ex * this.tileSize, (H - 4) * this.tileSize);
                 koopa.vx = -0.9 * this.enemySpeedMult;
                 this.enemies.push(koopa);
@@ -173,26 +177,45 @@ class Level {
         const startTx = Math.max(0, Math.floor(cameraX / this.tileSize));
         const endTx   = Math.min(this.width - 1, Math.ceil((cameraX + viewportWidth) / this.tileSize));
 
-        /* Background Scenery */
+        /* Background Scenery with Parallax Scrolling for depth */
         this.decorativeBackgrounds.forEach(bg => {
-            if (bg.x + 120 < cameraX || bg.x > cameraX + viewportWidth) return;
+            let parallaxFactor = 1.0;
+            let bgWidth = 120; // A generous width for culling
+
+            // Assign different scroll speeds based on the background element type
+            if (bg.type === 'cloud') {
+                parallaxFactor = 0.3; // Clouds are far away, move slowly
+                bgWidth = 60;
+            } else if (bg.type === 'hill') {
+                parallaxFactor = 0.6; // Hills are in the mid-ground
+                bgWidth = 72;
+            } else if (bg.type === 'bush') {
+                parallaxFactor = 0.8; // Bushes are closer, move faster
+                bgWidth = 45;
+            }
+
+            const drawX = bg.x - (cameraX * parallaxFactor);
+
+            // Cull elements that are off-screen
+            if (drawX + bgWidth < 0 || drawX > viewportWidth) return;
+
             if (bg.type === 'cloud') {
                 ctx.fillStyle = SpriteRenderer.themes[this.theme].cloud;
                 ctx.globalAlpha = 0.85;
-                ctx.fillRect(bg.x - cameraX,      bg.y,      60, 20);
-                ctx.fillRect(bg.x + 15 - cameraX, bg.y - 10, 30, 10);
+                ctx.fillRect(drawX,      bg.y,      60, 20);
+                ctx.fillRect(drawX + 15, bg.y - 10, 30, 10);
                 ctx.globalAlpha = 1;
             } else if (bg.type === 'hill') {
                 ctx.fillStyle = SpriteRenderer.themes[this.theme].hill;
                 ctx.beginPath();
-                ctx.moveTo(bg.x - cameraX,      bg.y + 60);
-                ctx.lineTo(bg.x + 36 - cameraX, bg.y);
-                ctx.lineTo(bg.x + 72 - cameraX, bg.y + 60);
+                ctx.moveTo(drawX,      bg.y + 60);
+                ctx.lineTo(drawX + 36, bg.y);
+                ctx.lineTo(drawX + 72, bg.y + 60);
                 ctx.fill();
             } else if (bg.type === 'bush') {
                 ctx.fillStyle = SpriteRenderer.themes[this.theme].bush;
-                ctx.fillRect(bg.x - cameraX,      bg.y + 15, 45, 15);
-                ctx.fillRect(bg.x + 10 - cameraX, bg.y + 5,  25, 10);
+                ctx.fillRect(drawX,      bg.y + 15, 45, 15);
+                ctx.fillRect(drawX + 10, bg.y + 5,  25, 10);
             }
         });
 

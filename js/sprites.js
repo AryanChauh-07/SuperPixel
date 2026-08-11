@@ -530,5 +530,66 @@ const SpriteRenderer = {
         ctx.fillRect(-36, 14 + flagHeight, 39, 24);
 
         ctx.restore();
+    },
+
+    /**
+     * Draw a simple Flying Enemy (28x20)
+     */
+    drawFlyingEnemy(ctx, x, y, frame = 0) {
+        ctx.save();
+        ctx.translate(x, y);
+
+        const bodyColor = '#4a0e2a'; // Dark purple/brown
+        const wingColor = '#6a1e4a'; // Lighter purple/brown
+        const eyeColor = '#fff';
+
+        // Body
+        ctx.fillStyle = bodyColor;
+        ctx.fillRect(8, 5, 12, 10); // Main body
+
+        // Head
+        ctx.fillRect(10, 0, 8, 6); // Head
+        ctx.fillStyle = eyeColor; // Eyes
+        ctx.fillRect(12, 2, 2, 2);
+        ctx.fillRect(15, 2, 2, 2);
+
+        // Wings (animated)
+        if (frame === 0) { // Wings up
+            ctx.fillStyle = wingColor;
+            ctx.beginPath();
+            ctx.moveTo(8, 5);
+            ctx.lineTo(0, 0);
+            ctx.lineTo(4, 10);
+            ctx.lineTo(8, 10);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(20, 5);
+            ctx.lineTo(28, 0);
+            ctx.lineTo(24, 10);
+            ctx.lineTo(20, 10);
+            ctx.closePath();
+            ctx.fill();
+        } else { // Wings down
+            ctx.fillStyle = wingColor;
+            ctx.beginPath();
+            ctx.moveTo(8, 10);
+            ctx.lineTo(0, 15);
+            ctx.lineTo(4, 5);
+            ctx.lineTo(8, 5);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(20, 10);
+            ctx.lineTo(28, 15);
+            ctx.lineTo(24, 5);
+            ctx.lineTo(20, 5);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        ctx.restore();
     }
 };
