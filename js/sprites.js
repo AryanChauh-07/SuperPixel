@@ -192,22 +192,41 @@ const SpriteRenderer = {
             ctx.fillRect(9, 14, 9, 4); // Mustache
 
             // Body / Shirt & Overalls
-            ctx.fillStyle = capRed;
-            ctx.fillRect(2, 18, 18, 10); // Red Shirt
+            ctx.fillStyle = capRed; // Red for shirt and arms
+            if (frame === 'walk1' || frame === 'walk2') {
+                // Dynamic running/walking animation with arm swing
+                ctx.fillRect(4, 18, 14, 10); // Torso
+                if (frame === 'walk2') { // Open stride pose: left leg back -> left arm forward
+                    ctx.fillRect(16, 19, 6, 5); // Front (left) arm
+                    ctx.fillRect(0, 19, 4, 5);  // Back (right) arm
+                } else { // 'walk1', passing pose: left leg fwd -> left arm back
+                    ctx.fillRect(2, 19, 6, 5);  // Back (left) arm
+                    ctx.fillRect(13, 19, 6, 5); // Front (right) arm
+                }
+            } else {
+                // Default idle/jump shirt
+                ctx.fillRect(2, 18, 18, 10);
+            }
+
             ctx.fillStyle = overallsBlue;
             ctx.fillRect(5, 24, 12, 16); // Blue Overalls
             ctx.fillStyle = yellow;
             ctx.fillRect(6, 28, 3, 3); ctx.fillRect(13, 28, 3, 3);
 
-            // Shoes & Legs
+            // Legs & Boots
             ctx.fillStyle = brown;
             if (frame === 'jump') {
                 ctx.fillRect(1, 38, 8, 9);
                 ctx.fillRect(13, 36, 8, 9);
             } else if (frame === 'walk1' || frame === 'walk2') {
-                const step = frame === 'walk1' ? 3 : -3;
-                ctx.fillRect(3 + step, 39, 8, 9);
-                ctx.fillRect(12 - step, 39, 8, 9);
+                // More dynamic running animation for legs
+                if (frame === 'walk2') { // Open stride pose
+                    ctx.fillRect(0, 37, 8, 9);    // Left leg back and up
+                    ctx.fillRect(15, 39, 8, 9);   // Right leg forward and planted
+                } else { // 'walk1', passing pose
+                    ctx.fillRect(8, 39, 8, 9);    // Right leg planted
+                    ctx.fillRect(5, 38, 8, 10);   // Left leg lifted and passing
+                }
             } else {
                 ctx.fillRect(3, 39, 8, 9);
                 ctx.fillRect(12, 39, 8, 9);
@@ -323,21 +342,24 @@ const SpriteRenderer = {
     drawQuestionBlock(ctx, x, y, isEmpty = false, theme = 'grassland') {
         ctx.save();
         ctx.translate(x, y);
+        const pal = this.themes[theme] || this.themes.grassland;
 
         if (isEmpty) {
-            ctx.fillStyle = '#8b4513';
+            // Used (empty) block - using brick colors for consistency
+            ctx.fillStyle = pal.brick;
             ctx.fillRect(0, 0, 24, 24);
-            ctx.fillStyle = '#5c2e0b';
+            ctx.fillStyle = '#000'; // Black outline/inset
             ctx.fillRect(2, 2, 20, 20);
-            ctx.fillStyle = '#8b4513';
+            ctx.fillStyle = pal.brick;
             ctx.fillRect(3, 3, 18, 18);
             ctx.fillStyle = '#000';
             ctx.fillRect(3, 3, 2, 2); ctx.fillRect(19, 3, 2, 2);
             ctx.fillRect(3, 19, 2, 2); ctx.fillRect(19, 19, 2, 2);
         } else {
+            // Active question block
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, 24, 24);
-            ctx.fillStyle = '#fcd000';
+            ctx.fillStyle = pal.question;
             ctx.fillRect(1, 1, 22, 22);
 
             // Highlight border
@@ -345,7 +367,7 @@ const SpriteRenderer = {
             ctx.fillRect(1, 1, 22, 2); ctx.fillRect(1, 1, 2, 22);
 
             // `?` Symbol
-            ctx.fillStyle = '#b88600';
+            ctx.fillStyle = '#000'; // Black for better contrast on all themes
             ctx.fillRect(8, 4, 8, 3);
             ctx.fillRect(13, 7, 3, 5);
             ctx.fillRect(10, 10, 5, 3);

@@ -271,34 +271,43 @@ class GameEngine {
 
     buyItem(itemType) {
         if (!this.player) return;
+
+        let purchased = false;
+        // When buying from the shop, show floating text in the center of the screen.
+        const particleX = this.virtualWidth / 2;
+        const particleY = this.virtualHeight / 2;
+
         if (itemType === 'shroom' && this.coins >= 5) {
             this.coins -= 5;
             this.player.grow(AudioSystem);
-            this.particles.push(new FloatingText(this.player.x - this.cameraX, this.player.y - 12, 'GROW!', '#00e676'));
+            this.particles.push(new FloatingText(particleX, particleY, 'GROW!', '#00e676'));
+            purchased = true;
         } else if (itemType === 'life' && this.coins >= 10) {
             this.coins -= 10;
             this.lives++;
-            try { AudioSystem.playBuySound(); } catch(e) { try { AudioSystem.playCoin(); } catch(e2) {} }
-            this.particles.push(new FloatingText(this.player.x - this.cameraX, this.player.y - 12, '+1 LIFE!', '#ff3855'));
+            this.particles.push(new FloatingText(particleX, particleY, '+1 LIFE!', '#ff3855'));
+            purchased = true;
         } else if (itemType === 'speed' && this.coins >= 8) {
             this.coins -= 8;
             this.player.speedBoost = 1.35;
-            try { AudioSystem.playBuySound(); } catch(e) { try { AudioSystem.playCoin(); } catch(e2) {} }
-            this.particles.push(new FloatingText(this.player.x - this.cameraX, this.player.y - 12, 'SPEED UP!', '#29b6f6'));
+            this.particles.push(new FloatingText(particleX, particleY, 'SPEED UP!', '#29b6f6'));
+            purchased = true;
         } else if (itemType === 'star' && this.coins >= 15) {
             this.coins -= 15;
             this.player.isStarInvincible = true;
             this.player.starTimer = 900;
-            try { AudioSystem.playBuySound(); } catch(e) { try { AudioSystem.playCoin(); } catch(e2) {} }
-            this.particles.push(new FloatingText(this.player.x - this.cameraX, this.player.y - 12, 'STAR POWER!', '#fcd000'));
+            this.particles.push(new FloatingText(particleX, particleY, 'STAR POWER!', '#fcd000'));
+            purchased = true;
         }
-        this.updateHUD();
-        this.updateShopUI();
+        if (purchased) {
+            try { AudioSystem.playBuySound(); } catch(e) { try { AudioSystem.playCoin(); } catch(e2) {} }
+            this.updateHUD();
+            this.updateShopUI();
+        }
     }
 
     hideOverlays() {
-        [this.startScreen, this.pauseScreen, this.shopScreen,
-         this.levelScreen, this.gameoverScreen, this.victoryScreen, this.endingScreen]
+        [this.startScreen, this.pauseScreen, this.shopScreen, this.levelScreen, this.gameoverScreen, this.victoryScreen, this.endingScreen]
             .forEach(s => { if (s) { s.classList.add('hidden'); s.classList.remove('active'); } });
     }
 
@@ -335,6 +344,10 @@ class GameEngine {
 
     /* ─── Main Update ─── */
     update() {
+        // Update particles regardless of game state for effects like shop purchase text.
+        this.particles.forEach(p => p.update());
+        this.particles = this.particles.filter(p => !p.remove);
+
         if (this.state !== 'PLAYING') return;
 
         try {
@@ -490,10 +503,6 @@ class GameEngine {
             });
 
             this.level.enemies = this.level.enemies.filter(e => !e.remove);
-
-            /* Particles */
-            this.particles.forEach(p => p.update());
-            this.particles = this.particles.filter(p => !p.remove);
 
             /* Flagpole */
             if (this.player.x >= this.level.flagpoleX - 15) {
