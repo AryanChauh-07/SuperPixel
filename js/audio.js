@@ -112,6 +112,39 @@ class SoundEngine {
         setTimeout(() => this.playTone(783.99, 0.12, 'square', 0.25), 120); // G5
     }
 
+    playFireballSound() {
+        if (this.muted || !this.ctx) return;
+        try {
+            const now = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(200, now);
+            osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
+
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+
+            osc.start(now);
+            osc.stop(now + 0.1);
+        } catch (e) {}
+    }
+
+    playPipeSound() {
+        if (this.muted || !this.ctx) return;
+        // Descending arpeggio for entering a pipe
+        const notes = [440, 415, 392, 370, 349, 330, 311, 293, 277, 261, 246, 233];
+        notes.forEach((freq, idx) => {
+            setTimeout(() => {
+                this.playTone(freq, 0.05, 'triangle', 0.2);
+            }, idx * 45);
+        });
+    }
+
     playPowerUp() {
         if (this.muted || !this.ctx) return;
         const notes = [330, 392, 659, 523, 587, 784];
