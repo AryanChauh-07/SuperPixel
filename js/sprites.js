@@ -132,7 +132,7 @@ const SpriteRenderer = {
     /**
      * Draw Classic Big Mario (24x48)
      */
-    drawBigHero(ctx, x, y, frame = 'idle', facing = 1, isInvincible = false, isStar = false) {
+    drawBigHero(ctx, x, y, frame = 'idle', facing = 1, isInvincible = false, isStar = false, isFiery = false) {
         ctx.save();
         ctx.translate(x, y);
         if (facing === -1) {
@@ -146,10 +146,14 @@ const SpriteRenderer = {
 
         let capRed = '#e52521';
         let overallsBlue = '#0026e6';
+
         if (isStar) {
             const hue = (Date.now() / 4) % 360;
             capRed = `hsl(${hue}, 100%, 50%)`;
             overallsBlue = `hsl(${(hue + 180) % 360}, 100%, 50%)`;
+        } else if (isFiery) {
+            capRed = '#ffffff';
+            overallsBlue = '#e52521';
         }
 
         const skin = '#fcc082';
@@ -479,6 +483,163 @@ const SpriteRenderer = {
         ctx.fillRect(4, 12, 16, 11);
         ctx.fillStyle = '#000';
         ctx.fillRect(7, 15, 2, 4); ctx.fillRect(15, 15, 2, 4);
+
+        ctx.restore();
+    },
+
+    /**
+     * Draw Fire Flower (24x24)
+     */
+    drawFireFlower(ctx, x, y, frame = 0) {
+        ctx.save();
+        ctx.translate(x, y);
+
+        // Stem
+        ctx.fillStyle = '#00a800'; // green
+        ctx.fillRect(9, 14, 6, 10);
+
+        // Leaves
+        ctx.fillRect(4, 18, 5, 4);
+        ctx.fillRect(15, 18, 5, 4);
+
+        // Petals (animated color)
+        const colors = ['#fca800', '#f86800', '#e84800', '#f86800'];
+        ctx.fillStyle = colors[frame % 4];
+        ctx.beginPath();
+        ctx.arc(12, 8, 10, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Face
+        ctx.fillStyle = '#f8d878'; // light yellow center
+        ctx.beginPath();
+        ctx.arc(12, 8, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Eyes
+        ctx.fillStyle = '#000';
+        ctx.fillRect(9, 6, 2, 3);
+        ctx.fillRect(13, 6, 2, 3);
+
+        ctx.restore();
+    },
+
+    /**
+     * Draw Fireball (12x12)
+     */
+    drawFireball(ctx, x, y, frame = 0) {
+        ctx.save();
+        ctx.translate(x, y);
+
+        const colors = ['#ffc800', '#ff8800', '#ff4400', '#ff8800'];
+        ctx.fillStyle = colors[frame % 4];
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 4;
+
+        ctx.beginPath();
+        ctx.arc(6, 6, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+    },
+
+    /**
+     * Draw Browser (The Boss) (60x70)
+     */
+    drawBrowser(ctx, x, y, facing = 1, state = 'walking', isInvincible = false) {
+        ctx.save();
+        ctx.translate(x, y);
+        if (facing === -1) {
+            ctx.scale(-1, 1);
+            ctx.translate(-60, 0);
+        }
+
+        if (isInvincible && Math.floor(Date.now() / 50) % 2 === 0) {
+            ctx.globalAlpha = 0.5;
+        }
+
+        const bodyGreen = '#228b22';
+        const bodyYellow = '#f0e68c';
+        const shellGreen = '#006400';
+        const hornWhite = '#ffffff';
+
+        // Legs
+        ctx.fillStyle = bodyYellow;
+        ctx.fillRect(10, 60, 15, 10);
+        ctx.fillRect(35, 60, 15, 10);
+
+        // Body
+        ctx.fillStyle = bodyYellow;
+        ctx.fillRect(5, 25, 50, 35);
+
+        // Head
+        ctx.fillStyle = bodyGreen;
+        ctx.fillRect(15, 5, 30, 30);
+        ctx.fillStyle = bodyYellow; // Snout
+        ctx.fillRect(20, 20, 35, 15);
+
+        // Eyes
+        ctx.fillStyle = '#ff0000'; // Red eyes
+        ctx.fillRect(20, 10, 8, 8);
+        ctx.fillRect(32, 10, 8, 8);
+        ctx.fillStyle = '#ffffff'; // Pupils
+        ctx.fillRect(22, 12, 2, 2);
+        ctx.fillRect(34, 12, 2, 2);
+
+        // Horns
+        ctx.fillStyle = hornWhite;
+        ctx.beginPath();
+        ctx.moveTo(18, 5); ctx.lineTo(15, -5); ctx.lineTo(23, 5); ctx.fill();
+        ctx.moveTo(42, 5); ctx.lineTo(45, -5); ctx.lineTo(37, 5); ctx.fill();
+
+        // Shell
+        ctx.fillStyle = shellGreen;
+        ctx.beginPath();
+        ctx.arc(30, 40, 30, Math.PI, Math.PI * 2, false);
+        ctx.fill();
+
+        // Shell Spikes
+        ctx.fillStyle = hornWhite;
+        ctx.fillRect(5, 20, 8, 8);
+        ctx.fillRect(26, 10, 8, 8);
+        ctx.fillRect(47, 20, 8, 8);
+
+        ctx.restore();
+    },
+
+    /**
+     * Draw Axe (24x24)
+     */
+    drawAxe(ctx, x, y) {
+        ctx.save();
+        ctx.translate(x, y);
+
+        // Handle
+        ctx.fillStyle = '#8B4513'; // SaddleBrown
+        ctx.fillRect(8, 0, 8, 24);
+
+        // Blade
+        ctx.fillStyle = '#A9A9A9'; // DarkGray
+        ctx.beginPath();
+        ctx.moveTo(16, 4);
+        ctx.lineTo(24, 12);
+        ctx.lineTo(16, 20);
+        ctx.lineTo(8, 20);
+        ctx.lineTo(0, 12);
+        ctx.lineTo(8, 4);
+        ctx.closePath();
+        ctx.fill();
+
+        // Blade edge highlight
+        ctx.fillStyle = '#D3D3D3'; // LightGray
+        ctx.beginPath();
+        ctx.moveTo(16, 6);
+        ctx.lineTo(22, 12);
+        ctx.lineTo(16, 18);
+        ctx.lineTo(10, 18);
+        ctx.lineTo(2, 12);
+        ctx.lineTo(10, 6);
+        ctx.closePath();
+        ctx.fill();
 
         ctx.restore();
     },
