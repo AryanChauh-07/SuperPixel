@@ -14,6 +14,7 @@ class Level {
 
         const themeMap = { 1: 'grassland', 2: 'cavern', 3: 'sky', 4: 'desert', 5: 'lava' };
         this.theme = themeMap[this.worldIndex] || 'grassland';
+        this.isBossLevel = this.subLevel === 5;
 
         this.timeLimit      = Math.max(250, 420 - (this.levelNum * 6));
         this.enemySpeedMult = 1.0 + (this.levelNum - 1) * 0.05;
@@ -25,6 +26,7 @@ class Level {
         this.items               = [];
         this.coins               = [];
         this.movingObstacles     = [];
+        this.pipeDestinations    = {};
         this.decorativeBackgrounds = [];
 
         this.flagpoleX = (this.width - 24) * this.tileSize;
@@ -34,13 +36,19 @@ class Level {
     }
 
     generateLevelData() {
+        if (this.isBossLevel) {
+            this.generateBossArena();
+            // Prevent normal level generation for boss levels
+            return;
+        }
+
         const H = this.height;
 
         /* ── Ground with pit gaps ── */
         const pitCount = Math.min(9, 2 + Math.floor(this.levelNum / 2.5));
         const pitPositions = [];
         for (let i = 0; i < pitCount; i++) {
-            const pitX = 35 + i * Math.floor((this.width - 70) / pitCount) + (this.levelNum % 3);
+            const pitX = 45 + i * Math.floor((this.width - 80) / pitCount) + (this.levelNum % 3);
             pitPositions.push(pitX);
         }
         for (let x = 0; x < this.width; x++) {
@@ -60,8 +68,13 @@ class Level {
                 this.tiles[H - 5][x + 3] = 2;
                 this.tiles[H - 5][x + 4] = 3;
             } else if (pattern === 1) {
-                this.addPipe(x + 2, H - 4, 2);
-                this.addPipe(x + 8, H - 5, 3);
+                // Make one specific pipe enterable as a demonstration (on levels > 1)
+                if (x === 28 && this.levelNum > 1) {
+                    this.addPipe(x + 2, H - 4, 2, true, { tx: this.width - 50, ty: H - 8 });
+                } else {
+                    this.addPipe(x + 2, H - 4, 2);
+                }
+                this.addPipe(x + 8, H - 5, 3); // A taller, non-enterable pipe
             } else if (pattern === 2) {
                 for (let bx = x; bx < x + 5; bx++) {
                     this.tiles[H - 5][bx] = 2;
@@ -124,16 +137,50 @@ class Level {
         }
     }
 
-    addPipe(x, y, heightTiles) {
+    addPipe(x, y, heightTiles, isEnterable = false, destination = null) {
         if (x + 1 >= this.width || y >= this.height) return;
-        this.tiles[y][x]     = 5;
-        this.tiles[y][x + 1] = 5; // both solid
+        
+        // The top of the pipe
+        this.tiles[y][x]     = isEnterable ? 6 : 5;
+        this.tiles[y][x + 1] = isEnterable ? 6 : 5;
+        if (isEnterable && destination) {
+            this.pipeDestinations[`${x},${y}`] = destination;
+        }
+
         for (let i = 1; i < heightTiles; i++) {
-            if (y + i < this.height) {
+            if (y + i < this.height) { // The body
                 this.tiles[y + i][x]     = 5;
                 this.tiles[y + i][x + 1] = 5;
             }
         }
+    }
+
+    generateBossArena() {
+        this.width = 60; // A more contained arena
+        this.flagpoleX = -1; // No flagpole in boss arenas
+        this.castleX = -1; // No castle
+        const H = this.height;
+
+        // Solid floor and walls
+        for (let x = 0; x < this.width; x++) {
+            this.tiles[H - 1][x] = 1;
+            this.tiles[H - 2][x] = 1;
+        }
+        for (let y = 0; y < H; y++) {
+            this.tiles[y][0] = 1; // Left wall
+            this.tiles[y][this.width - 1] = 1; // Right wall
+        }
+
+        // Add the boss
+        const boss = new Browser((this.width - 10) * this.tileSize, (H - 6) * this.tileSize, this.levelNum);
+        this.enemies.push(boss);
+
+        // Add the axe to defeat the boss
+        const axe = new Axe((this.width - 5) * this.tileSize, (H - 3) * this.tileSize); // Place on ground near right wall
+        this.items.push(axe);
+
+        // Add some lava theme elements for the boss fight
+        this.theme = 'lava';
     }
 
     addStaircase(startX, height, ascending) {
@@ -158,8 +205,20 @@ class Level {
             isBrick:     type === 2,
             isQuestion:  type === 3 || type === 4,
             hasMushroom: type === 4,
-            isPipe:      type === 5
+            isPipe:      type === 5 || type === 6,
+            isEnterable: type === 6
         };
+    }
+
+    getPipeDestination(tx, ty) {
+        // The key is the top-left tile of the pipe
+        if (this.pipeDestinations[`${tx},${ty}`]) {
+            return this.pipeDestinations[`${tx},${ty}`];
+        }
+        if (this.pipeDestinations[`${tx - 1},${ty}`]) {
+            return this.pipeDestinations[`${tx - 1},${ty}`];
+        }
+        return null;
     }
 
     setTile(tx, ty, type) {
@@ -178,6 +237,7 @@ class Level {
         const endTx   = Math.min(this.width - 1, Math.ceil((cameraX + viewportWidth) / this.tileSize));
 
         /* Background Scenery with Parallax Scrolling for depth */
+        const now = Date.now(); // Add a time source for animations
         this.decorativeBackgrounds.forEach(bg => {
             let parallaxFactor = 1.0;
             let bgWidth = 120; // A generous width for culling
@@ -200,10 +260,11 @@ class Level {
             if (drawX + bgWidth < 0 || drawX > viewportWidth) return;
 
             if (bg.type === 'cloud') {
+                const bobOffset = Math.sin(now / 1200 + bg.x / 100) * 4; // Gentle vertical bob
                 ctx.fillStyle = SpriteRenderer.themes[this.theme].cloud;
                 ctx.globalAlpha = 0.85;
-                ctx.fillRect(drawX,      bg.y,      60, 20);
-                ctx.fillRect(drawX + 15, bg.y - 10, 30, 10);
+                ctx.fillRect(drawX,      bg.y + bobOffset,      60, 20);
+                ctx.fillRect(drawX + 15, bg.y - 10 + bobOffset, 30, 10);
                 ctx.globalAlpha = 1;
             } else if (bg.type === 'hill') {
                 ctx.fillStyle = SpriteRenderer.themes[this.theme].hill;
@@ -213,8 +274,9 @@ class Level {
                 ctx.lineTo(drawX + 72, bg.y + 60);
                 ctx.fill();
             } else if (bg.type === 'bush') {
+                const rustle = Math.sin(now / 300 + bg.x / 50) * 2; // Gentle horizontal rustle
                 ctx.fillStyle = SpriteRenderer.themes[this.theme].bush;
-                ctx.fillRect(drawX,      bg.y + 15, 45, 15);
+                ctx.fillRect(drawX + rustle,      bg.y + 15, 45 - rustle * 2, 15);
                 ctx.fillRect(drawX + 10, bg.y + 5,  25, 10);
             }
         });
@@ -234,7 +296,7 @@ class Level {
                     SpriteRenderer.drawQuestionBlock(ctx, drawX, drawY, false, this.theme);
                 } else if (type === 9) {
                     SpriteRenderer.drawQuestionBlock(ctx, drawX, drawY, true, this.theme);
-                } else if (type === 5) {
+                } else if (type === 5 || type === 6) {
                     SpriteRenderer.drawPipe(ctx, drawX, drawY, 30, 60);
                 }
             }
@@ -248,11 +310,13 @@ class Level {
         });
 
         /* Flagpole & Castle */
-        if (this.flagpoleX + 60 > cameraX && this.flagpoleX < cameraX + viewportWidth) {
-            SpriteRenderer.drawFlagpole(ctx, this.flagpoleX - cameraX, (this.height - 9) * this.tileSize);
-        }
-        if (this.castleX + 150 > cameraX && this.castleX < cameraX + viewportWidth) {
-            SpriteRenderer.drawCastle(ctx, this.castleX - cameraX, (this.height - 5) * this.tileSize);
+        if (!this.isBossLevel) {
+            if (this.flagpoleX + 60 > cameraX && this.flagpoleX < cameraX + viewportWidth) {
+                SpriteRenderer.drawFlagpole(ctx, this.flagpoleX - cameraX, (this.height - 9) * this.tileSize);
+            }
+            if (this.castleX + 150 > cameraX && this.castleX < cameraX + viewportWidth) {
+                SpriteRenderer.drawCastle(ctx, this.castleX - cameraX, (this.height - 5) * this.tileSize);
+            }
         }
     }
 }

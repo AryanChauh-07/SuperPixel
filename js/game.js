@@ -24,6 +24,7 @@ class GameEngine {
         // Game State
         this.state         = 'START';
         this.previousState = 'START';
+        this.transitionData = null;
         this.score  = 0;
         this.coins  = 0;
         this.lives  = 3;
@@ -37,6 +38,7 @@ class GameEngine {
         this.level     = null;
         this.player    = null;
         this.particles = [];
+        this.fireballs = [];
 
         // Input
         this.keys = { left: false, right: false, up: false, down: false, jump: false, run: false };
@@ -141,13 +143,13 @@ class GameEngine {
         switch (e.code) {
             case 'ArrowLeft':  case 'KeyA':  this.keys.left  = true; break;
             case 'ArrowRight': case 'KeyD':  this.keys.right = true; break;
-            case 'ArrowUp':    case 'KeyW':  case 'Space': this.keys.jump = true; e.preventDefault(); break;
-            case 'ArrowDown':                this.keys.down  = true; break;
-            case 'ShiftLeft':  case 'ShiftRight': case 'KeyX': this.keys.run = true; break;
-            case 'KeyS':
-                if      (this.state === 'PLAYING' || this.state === 'PAUSED') this.openShop();
-                else if (this.state === 'SHOP')  this.closeShop();
-                else     this.keys.down = true;
+            case 'ArrowUp':    case 'KeyW':  case 'Space':  this.keys.jump = true; e.preventDefault(); break;
+            case 'ArrowDown':  case 'KeyS':  this.keys.down  = true; break;
+            case 'ShiftLeft':  case 'ShiftRight': case 'KeyX':
+                if (this.state === 'PLAYING') {
+                    this.shootFireball();
+                }
+                this.keys.run = true;
                 break;
             case 'KeyP': this.togglePause(); break;
             case 'KeyM': {
@@ -166,7 +168,7 @@ class GameEngine {
             case 'ArrowLeft':  case 'KeyA':  this.keys.left  = false; break;
             case 'ArrowRight': case 'KeyD':  this.keys.right = false; break;
             case 'ArrowUp':    case 'KeyW':  case 'Space':  this.keys.jump = false; break;
-            case 'ArrowDown':  case 'KeyS':  this.keys.down = false; break;
+            case 'ArrowDown':  case 'KeyS':  this.keys.down  = false; break; // Keep S here for consistency
             case 'ShiftLeft':  case 'ShiftRight': case 'KeyX': this.keys.run = false; break;
         }
     }
@@ -185,6 +187,7 @@ class GameEngine {
             this.level  = new Level(this.currentLevelNum);
             this.player = new Player(60, 272);
             this.particles = [];
+            this.fireballs = [];
 
             this.time      = this.level.timeLimit;
             this.timeTimer = 0;
@@ -261,17 +264,7 @@ class GameEngine {
         }
     }
 
-    updateShopUI() {
-        document.getElementById('shop-coin-count').textContent = this.coins;
-        document.getElementById('buy-shroom-btn').disabled = this.coins < 5;
-        document.getElementById('buy-life-btn').disabled   = this.coins < 10;
-        document.getElementById('buy-speed-btn').disabled  = this.coins < 8;
-        document.getElementById('buy-star-btn').disabled   = this.coins < 15;
-    }
-
     buyItem(itemType) {
-        if (!this.player) return;
-
         let purchased = false;
         // When buying from the shop, show floating text in the center of the screen.
         const particleX = this.virtualWidth / 2;
@@ -311,16 +304,28 @@ class GameEngine {
             .forEach(s => { if (s) { s.classList.add('hidden'); s.classList.remove('active'); } });
     }
 
+    updateShopUI() {
+        document.getElementById('shop-coin-count').textContent = this.coins;
+        document.getElementById('buy-shroom-btn').disabled = this.coins < 5;
+        document.getElementById('buy-life-btn').disabled   = this.coins < 10;
+        document.getElementById('buy-speed-btn').disabled  = this.coins < 8;
+        document.getElementById('buy-star-btn').disabled   = this.coins < 15;
+    }
+
     /* ─── Block Bump Handler ─── */
     handleHeadBump(tx, ty, tile) {
         if (!tile) return;
         if (tile.isQuestion) {
-            this.level.setTile(tx, ty, 9);
+            this.level.setTile(tx, ty, 9); // Set to empty block
             if (tile.hasMushroom) {
-                const shroom = new Mushroom(tx * 30, (ty - 1) * 30);
-                this.level.items.push(shroom);
+                // If player is big, spawn a Fire Flower. Otherwise, a Mushroom.
+                const item = this.player.isBig
+                    ? new FireFlower(tx * 30, (ty - 1) * 30)
+                    : new Mushroom(tx * 30, (ty - 1) * 30);
+                this.level.items.push(item);
                 try { AudioSystem.playBump(); } catch(e) {}
             } else {
+                // It's a coin
                 this.coins++;
                 this.score += 200;
                 this.particles.push(new FloatingText(tx * 30 - this.cameraX, ty * 30 - 12, '+200', '#fcd000'));
@@ -342,11 +347,87 @@ class GameEngine {
         }
     }
 
+    /* ─── Player Actions ─── */
+    shootFireball() {
+        if (!this.player || !this.player.isFiery || !this.player.canShoot) return;
+
+        const fireball = new Fireball(
+            this.player.x + (this.player.facing === 1 ? 20 : -12),
+            this.player.y + 20,
+            this.player.facing
+        );
+        this.fireballs.push(fireball);
+        this.player.canShoot = false;
+        this.player.shootCooldown = 20; // Cooldown managed on player
+        try { AudioSystem.playFireballSound(); } catch(e) {}
+    }
+
+    tryEnterPipe() {
+        if (this.state !== 'PLAYING' || !this.player.isCrouching) return;
+
+        const player = this.player;
+        const level = this.level;
+        const tileSize = level.tileSize;
+
+        // Check tile directly under the player's center. Player's y is top, h is height.
+        const checkX = Math.floor((player.x + player.w / 2) / tileSize);
+        const checkY = Math.floor((player.y + player.h) / tileSize);
+
+        const tile = level.getTile(checkX, checkY);
+
+        if (tile && tile.isEnterable) {
+            const dest = level.getPipeDestination(checkX, checkY);
+            if (dest) {
+                this.startPipeTransition(dest);
+            }
+        }
+    }
+
+    startPipeTransition(destination) {
+        this.state = 'PIPE_TRANSITION';
+        this.player.isEnteringPipe = true;
+        this.transitionData = {
+            timer: 0,
+            duration: 90, // 1.5 seconds
+            destination: destination
+        };
+        try { AudioSystem.playPipeSound(); } catch(e) {}
+    }
+
+    handlePipeTransition() {
+        const data = this.transitionData;
+        data.timer++;
+
+        this.player.y += 1; // Animate player moving down into pipe
+        this.player.vx = 0; // Stop any horizontal movement
+
+        if (data.timer >= data.duration) {
+            // Teleport player to destination
+            this.player.x = data.destination.tx * this.level.tileSize;
+            this.player.y = data.destination.ty * this.level.tileSize;
+            this.player.vy = 0;
+
+            // Snap camera to new position
+            const targetCameraX = this.player.x - this.virtualWidth * 0.4;
+            this.cameraX = Math.max(0, Math.min(targetCameraX, (this.level.width * 30) - this.virtualWidth));
+
+            // End transition
+            this.state = 'PLAYING';
+            this.player.isEnteringPipe = false;
+            this.transitionData = null;
+        }
+    }
+
     /* ─── Main Update ─── */
     update() {
         // Update particles regardless of game state for effects like shop purchase text.
         this.particles.forEach(p => p.update());
         this.particles = this.particles.filter(p => !p.remove);
+
+        if (this.state === 'PIPE_TRANSITION') {
+            this.handlePipeTransition();
+            return;
+        }
 
         if (this.state !== 'PLAYING') return;
 
@@ -361,6 +442,11 @@ class GameEngine {
 
             /* Player */
             this.player.update(this.level, this.keys, AudioSystem);
+
+            // Check for pipe entry after player update
+            if (this.player.isCrouching && this.keys.down) {
+                this.tryEnterPipe();
+            }
 
             if (this.player.x < this.cameraX) {
                 this.player.x  = this.cameraX;
@@ -392,12 +478,65 @@ class GameEngine {
                 item.update(this.level);
                 if (PhysicsEngine.checkOverlap(this.player.getBounds(), item.getBounds())) {
                     item.remove = true;
-                    this.player.grow(AudioSystem);
-                    this.score += 1000;
-                    this.particles.push(new FloatingText(this.player.x - this.cameraX, this.player.y - 12, '+1000', '#00e676'));
+                    if (item instanceof Mushroom) {
+                        this.player.grow(AudioSystem);
+                        this.score += 1000;
+                        this.particles.push(new FloatingText(this.player.x - this.cameraX, this.player.y - 12, '+1000', '#00e676'));
+                    } else if (item instanceof FireFlower) {
+                        this.player.promoteToFiery(AudioSystem);
+                        this.score += 1000;
+                        this.particles.push(new FloatingText(this.player.x - this.cameraX, this.player.y - 12, 'FIERY!', '#ff8c00'));
+                    } else if (item instanceof Axe) { // New axe logic
+                        item.remove = true;
+                        this.score += 1000; // Score for collecting axe
+                        this.particles.push(new FloatingText(this.player.x - this.cameraX, this.player.y - 12, 'AXE!', '#fcd000'));
+                        try { AudioSystem.playPowerUp(); } catch(e) {} // Use power-up sound for now
+
+                        // Defeat the boss instantly
+                        const boss = this.level.enemies.find(e => e instanceof Browser);
+                        if (boss && !boss.isDead) {
+                            boss.isDead = true;
+                            boss.vy = -8; // Make it bounce up as if defeated
+                            boss.vx = 0;
+                            // The score for defeating the boss is already added in Browser.takeDamage,
+                            // but since we're setting isDead directly, we need to add it here.
+                            this.score += 5000;
+                            this.particles.push(new FloatingText(boss.x - this.cameraX, boss.y - 32, '+5000', '#fcd000'));
+                        }
+                    }
                 }
             });
             this.level.items = this.level.items.filter(i => !i.remove);
+
+            /* Fireballs */
+            this.fireballs.forEach(fb => {
+                fb.update(this.level);
+                // Check collision with enemies
+                if (fb instanceof Fireball && !(fb instanceof BrowserFire)) {
+                    this.level.enemies.forEach(enemy => {
+                        if (!enemy.isDead && !enemy.remove && PhysicsEngine.checkOverlap(fb.getBounds(), enemy.getBounds())) {
+                            fb.remove = true;
+                            if (enemy instanceof Browser) {
+                                enemy.takeDamage(this);
+                            } else if (typeof enemy.squish === 'function') {
+                                enemy.squish(); // Use squish for visual effect, but it's a hit
+                            } else {
+                                enemy.remove = true;
+                            }
+                            this.score += 200;
+                            try { AudioSystem.playStomp(); } catch(e) {} // Or a fireball hit sound
+                            this.particles.push(new FloatingText(enemy.x - this.cameraX, enemy.y - 12, '+200', '#ff8c00'));
+                        }
+                    });
+                } else if (fb instanceof BrowserFire) { // Boss fireballs hit player
+                    if (PhysicsEngine.checkOverlap(fb.getBounds(), this.player.getBounds())) {
+                        fb.remove = true;
+                        const died = this.player.takeDamage(AudioSystem);
+                        if (died) this.handlePlayerDeath();
+                    }
+                }
+            });
+            this.fireballs = this.fireballs.filter(fb => !fb.remove);
 
             /* Collectible Coins */
             this.level.coins.forEach(coin => {
@@ -432,7 +571,7 @@ class GameEngine {
             const playerBounds = this.player.getBounds();
             this.level.enemies.forEach(enemy => {
                 if (enemy.isDead || enemy.remove) return;
-                enemy.update(this.level);
+                enemy.update(this.level, this);
 
                 const eb = enemy.getBounds();
                 if (!PhysicsEngine.checkOverlap(playerBounds, eb)) return;
@@ -473,6 +612,15 @@ class GameEngine {
                         const died = this.player.takeDamage(AudioSystem);
                         if (died) this.handlePlayerDeath();
                     }
+                } else if (enemy instanceof Browser) {
+                    if (isStomp) {
+                        enemy.takeDamage(this);
+                        this.player.vy = -8; // Higher bounce off boss
+                        try { AudioSystem.playStomp(); } catch(e) {}
+                    } else if (!enemy.isDead) { // Don't take damage from a dead boss
+                        const died = this.player.takeDamage(AudioSystem);
+                        if (died) this.handlePlayerDeath();
+                    }
                 } else if (enemy instanceof FlyingEnemy) { // New Flying Enemy collision logic
                     if (isStomp) {
                         enemy.squish();
@@ -505,7 +653,17 @@ class GameEngine {
             this.level.enemies = this.level.enemies.filter(e => !e.remove);
 
             /* Flagpole */
-            if (this.player.x >= this.level.flagpoleX - 15) {
+            let victory = false;
+            if (this.level.isBossLevel) {
+                const boss = this.level.enemies.find(e => e instanceof Browser);
+                if (boss && boss.isDead && this.state === 'PLAYING') {
+                    victory = true;
+                }
+            } else if (this.level.flagpoleX > 0 && this.player.x >= this.level.flagpoleX - 15) {
+                victory = true;
+            }
+
+            if (victory) {
                 if (this.currentLevelNum === 25) this.handleGrandEnding();
                 else this.handleVictory();
             }
@@ -583,7 +741,7 @@ class GameEngine {
             // Level tiles, scenery, moving obstacles
             this.level.draw(this.ctx, this.cameraX, this.virtualWidth, this.virtualHeight);
 
-            // Mushroom items
+            // Items (mushrooms, flowers)
             this.level.items.forEach(item => {
                 this.ctx.save();
                 this.ctx.translate(-this.cameraX, 0);
@@ -621,6 +779,17 @@ class GameEngine {
                 this.player.draw(this.ctx);
                 this.ctx.restore();
             }
+
+            // Fireballs
+            this.fireballs.forEach(fb => {
+                const screenX = fb.x - this.cameraX;
+                if (screenX > -30 && screenX < this.virtualWidth + 30) {
+                    this.ctx.save();
+                    this.ctx.translate(-this.cameraX, 0);
+                    fb.draw(this.ctx);
+                    this.ctx.restore();
+                }
+            });
 
             // Particles / floating text
             this.particles.forEach(p => p.draw(this.ctx));
