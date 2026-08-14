@@ -241,13 +241,16 @@ class GameEngine {
     }
 
     openShop() {
-        if (this.state === 'PLAYING' || this.state === 'PAUSED') {
+        if (this.state === 'PLAYING' || this.state === 'PAUSED' || this.state === 'START') {
             this.previousState = this.state;
             this.state = 'SHOP';
             this.updateShopUI();
             this.hideOverlays();
             this.shopScreen.classList.remove('hidden');
             this.shopScreen.classList.add('active');
+            if (this.previousState === 'PLAYING') {
+                try { AudioSystem.stopMusic(); } catch(e) {}
+            }
         }
     }
 
@@ -258,6 +261,10 @@ class GameEngine {
             this.pauseScreen.classList.remove('hidden');
             this.pauseScreen.classList.add('active');
             this.state = 'PAUSED';
+        } else if (this.previousState === 'START') {
+            this.startScreen.classList.remove('hidden');
+            this.startScreen.classList.add('active');
+            this.state = 'START';
         } else {
             this.state = 'PLAYING';
             try { AudioSystem.startMusic(); } catch(e) {}
@@ -270,22 +277,26 @@ class GameEngine {
         const particleX = this.virtualWidth / 2;
         const particleY = this.virtualHeight / 2;
 
-        if (itemType === 'shroom' && this.coins >= 5) {
+        // Player-specific items can only be bought when a player entity exists (during gameplay).
+        const canBuyPlayerItems = this.player && (this.previousState === 'PLAYING' || this.previousState === 'PAUSED');
+
+        if (itemType === 'shroom' && this.coins >= 5 && canBuyPlayerItems) {
             this.coins -= 5;
             this.player.grow(AudioSystem);
             this.particles.push(new FloatingText(particleX, particleY, 'GROW!', '#00e676'));
             purchased = true;
         } else if (itemType === 'life' && this.coins >= 10) {
+            // Lives are a global stat, can be bought anytime.
             this.coins -= 10;
             this.lives++;
-            this.particles.push(new FloatingText(particleX, particleY, '+1 LIFE!', '#ff3855'));
+            this.particles.push(new FloatingText(particleX, particleY, '1-UP!', '#00e676'));
             purchased = true;
-        } else if (itemType === 'speed' && this.coins >= 8) {
+        } else if (itemType === 'speed' && this.coins >= 8 && canBuyPlayerItems) {
             this.coins -= 8;
             this.player.speedBoost = 1.35;
             this.particles.push(new FloatingText(particleX, particleY, 'SPEED UP!', '#29b6f6'));
             purchased = true;
-        } else if (itemType === 'star' && this.coins >= 15) {
+        } else if (itemType === 'star' && this.coins >= 15 && canBuyPlayerItems) {
             this.coins -= 15;
             this.player.isStarInvincible = true;
             this.player.starTimer = 900;
@@ -305,11 +316,14 @@ class GameEngine {
     }
 
     updateShopUI() {
+        // Player-specific items can only be bought when a player entity exists.
+        const canBuyPlayerItems = this.player && (this.previousState === 'PLAYING' || this.previousState === 'PAUSED');
+
         document.getElementById('shop-coin-count').textContent = this.coins;
-        document.getElementById('buy-shroom-btn').disabled = this.coins < 5;
+        document.getElementById('buy-shroom-btn').disabled = this.coins < 5 || !canBuyPlayerItems;
         document.getElementById('buy-life-btn').disabled   = this.coins < 10;
-        document.getElementById('buy-speed-btn').disabled  = this.coins < 8;
-        document.getElementById('buy-star-btn').disabled   = this.coins < 15;
+        document.getElementById('buy-speed-btn').disabled  = this.coins < 8 || !canBuyPlayerItems;
+        document.getElementById('buy-star-btn').disabled   = this.coins < 15 || !canBuyPlayerItems;
     }
 
     /* ─── Block Bump Handler ─── */
