@@ -462,7 +462,8 @@ class GameEngine {
                 this.tryEnterPipe();
             }
 
-            if (this.player.x < this.cameraX) {
+            // In regular levels, prevent player from moving left of the camera.
+            if (!this.level.isBossLevel && this.player.x < this.cameraX) {
                 this.player.x  = this.cameraX;
                 this.player.vx = 0;
             }
@@ -473,18 +474,22 @@ class GameEngine {
             }
 
             /* Camera */
-            // The target x-position for the camera is ahead of the player, creating a leading space.
-            const targetCameraX = this.player.x - this.virtualWidth * 0.4;
+            // The target x-position for the camera is ahead of the player in normal levels,
+            // and centered on the player in boss levels for better arena visibility.
+            const targetOffsetX = this.level.isBossLevel ? this.virtualWidth / 2 : this.virtualWidth * 0.4;
+            const targetCameraX = this.player.x - targetOffsetX;
             
-            // Only move the camera forward.
-            if (targetCameraX > this.cameraX) {
+            // In a boss level, the camera should be able to move left and right.
+            // In a regular level, it should only move forward.
+            if (this.level.isBossLevel || targetCameraX > this.cameraX) {
                 // Use linear interpolation (lerp) for a smooth "catch-up" effect.
                 // A smaller smoothing factor (e.g., 0.05) results in a smoother, more delayed camera.
                 const smoothing = 0.08;
                 const newCameraX = this.cameraX + (targetCameraX - this.cameraX) * smoothing;
 
-                // Clamp the camera to the level's right boundary.
-                this.cameraX = Math.min(newCameraX, (this.level.width * 30) - this.virtualWidth);
+                // Clamp the camera to the level's boundaries.
+                const maxCameraX = (this.level.width * 30) - this.virtualWidth;
+                this.cameraX = Math.max(0, Math.min(newCameraX, maxCameraX));
             }
 
             /* Items (mushrooms) */
