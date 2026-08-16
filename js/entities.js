@@ -467,15 +467,27 @@ class Browser extends Entity {
 class BrowserFire extends Entity {
     constructor(x, y, facing) {
         super(x, y, 16, 16);
-        this.vx = 4 * facing;
+        this.vx = 4.5 * facing; // Slightly faster
+        this.vy = 1; // Give it some initial vertical velocity to start bouncing
         this.animTimer = 0;
+    }
+
+    onWallHit() {
+        // Boss fireballs bounce off walls instead of being destroyed, making them a persistent threat.
+        this.vx = -this.vx;
+    }
+
+    onLand() {
+        // Bounce up when it hits the ground.
+        this.vy = -7;
     }
 
     update(level) {
         this.animTimer++;
-        this.x += this.vx;
-        // Remove if it goes off-screen
-        if (this.x < -20 || this.x > level.width * level.tileSize + 20) {
+        // Use the full physics engine update for bouncing behavior.
+        super.update(level);
+        // Also remove if it falls in a pit.
+        if (this.y > level.height * level.tileSize) {
             this.remove = true;
         }
     }
