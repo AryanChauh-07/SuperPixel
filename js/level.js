@@ -19,7 +19,9 @@ class Level {
         this.timeLimit      = Math.max(250, 420 - (this.levelNum * 6));
         this.enemySpeedMult = 1.0 + (this.levelNum - 1) * 0.05;
 
-        this.width = 180 + (this.levelNum * 6);
+        // Increased base width and per-level scaling to make levels feel larger and more expansive.
+        // The original was 180 + (levelNum * 6).
+        this.width = 240 + (this.levelNum * 8);
         this.tiles = Array(this.height).fill(null).map(() => Array(this.width).fill(0));
 
         this.enemies             = [];
@@ -161,14 +163,32 @@ class Level {
         this.castleX = -1; // No castle
         const H = this.height;
 
-        // Solid floor and walls
+        // Solid floor with a central lava pit
+        const pitStart = Math.floor(this.width / 2) - 4;
+        const pitEnd = pitStart + 8;
         for (let x = 0; x < this.width; x++) {
+            // Create a pit in the middle by NOT adding floor tiles
+            if (x >= pitStart && x < pitEnd) continue;
             this.tiles[H - 1][x] = 1;
             this.tiles[H - 2][x] = 1;
         }
+
+        // Add a helpful power-up block over the pit, making it easier to reach.
+        // This gives the player a chance to recover or power-up during the fight.
+        const platformCenter = pitStart + 3; // Move platform left to significantly reduce the jump gap.
+        this.tiles[H - 5][platformCenter - 2] = 2; // Lower the platform to make it easily reachable.
+        this.tiles[H - 5][platformCenter - 1] = 2; // Brick
+        this.tiles[H - 5][platformCenter]     = 4; // Question block with mushroom/flower
+        this.tiles[H - 5][platformCenter + 1] = 2; // Brick
+        this.tiles[H - 5][platformCenter + 2] = 2; // Brick
+
+        // Create thicker, more visually appealing walls using brick tiles.
+        const wallWidth = 4; // How many tiles thick the walls are.
         for (let y = 0; y < H; y++) {
-            this.tiles[y][0] = 1; // Left wall
-            this.tiles[y][this.width - 1] = 1; // Right wall
+            for (let i = 0; i < wallWidth; i++) {
+                this.tiles[y][i] = 2; // Left wall (brick tile)
+                this.tiles[y][this.width - 1 - i] = 2; // Right wall (brick tile)
+            }
         }
 
         // Add the boss
@@ -281,24 +301,61 @@ class Level {
             }
         });
 
-        /* Draw Tiles */
+        /* Draw Tiles with Optimization */
+        // This new logic groups adjacent tiles of the same type (like ground or bricks)
+        // and draws them in a single operation using a repeating pattern. This significantly
+        // reduces the number of draw calls, improving rendering performance.
         for (let ty = 0; ty < this.height; ty++) {
-            for (let tx = startTx; tx <= endTx; tx++) {
+            for (let tx = startTx; tx <= endTx; /* tx is incremented inside the loop */) {
                 const type = this.tiles[ty][tx];
-                if (type === 0) continue;
+                if (type === 0) {
+                    tx++;
+                    continue;
+                }
+
+                // Find how many tiles of the same type are in a row (a "run")
+                let runWidth = 1;
+                while (tx + runWidth <= endTx && this.tiles[ty][tx + runWidth] === type) {
+                    runWidth++;
+                }
+
                 const drawX = tx * this.tileSize - cameraX;
                 const drawY = ty * this.tileSize;
-                if (type === 1) {
-                    SpriteRenderer.drawGroundTile(ctx, drawX, drawY, this.theme);
-                } else if (type === 2) {
-                    SpriteRenderer.drawBrickBlock(ctx, drawX, drawY, this.theme);
-                } else if (type === 3 || type === 4) {
-                    SpriteRenderer.drawQuestionBlock(ctx, drawX, drawY, false, this.theme);
-                } else if (type === 9) {
-                    SpriteRenderer.drawQuestionBlock(ctx, drawX, drawY, true, this.theme);
-                } else if (type === 5 || type === 6) {
-                    SpriteRenderer.drawPipe(ctx, drawX, drawY, 30, 60);
+
+                // Use optimized pattern rendering for common, static tiles (ground and brick).
+                if (type === 1 || type === 2) {
+                    const pattern = SpriteRenderer.getTilePattern(ctx, type, this.theme, this.tileSize);
+                    if (pattern) {
+                        ctx.fillStyle = pattern;
+                        // We must translate to align the pattern with the tile grid, as patterns are drawn
+                        // relative to the canvas origin, not the fillRect position.
+                        ctx.save();
+                        ctx.translate(drawX, drawY);
+                        ctx.fillRect(0, 0, runWidth * this.tileSize, this.tileSize);
+                        ctx.restore();
+                    }
+                } else {
+                    // For other, more complex, or non-repeating tiles, draw them individually.
+                    for (let i = 0; i < runWidth; i++) {
+                        const currentDrawX = (tx + i) * this.tileSize - cameraX;
+                        const currentType = this.tiles[ty][tx + i];
+
+                        if (currentType === 3 || currentType === 4) {
+                            SpriteRenderer.drawQuestionBlock(ctx, currentDrawX, drawY, false, this.theme);
+                        } else if (currentType === 9) {
+                            SpriteRenderer.drawQuestionBlock(ctx, currentDrawX, drawY, true, this.theme);
+                        } else if (currentType === 5 || currentType === 6) {
+                            const tileAbove = this.getTile(tx + i, ty - 1);
+                            if (!tileAbove || !tileAbove.isPipe) {
+                                let pipeHeight = 1;
+                                while (this.getTile(tx + i, ty + pipeHeight)?.isPipe) { pipeHeight++; }
+                                SpriteRenderer.drawPipe(ctx, currentDrawX, drawY, this.tileSize, pipeHeight * this.tileSize);
+                            }
+                        }
+                    }
                 }
+                // Move to the next tile after the run we just processed.
+                tx += runWidth;
             }
         }
 
