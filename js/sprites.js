@@ -3,6 +3,37 @@
  */
 
 const SpriteRenderer = {
+    patternCache: {},
+
+    getTilePattern(ctx, type, theme, tileSize) {
+        const key = `${type}-${theme}`;
+        // Check if we have a pattern for the correct context.
+        // Patterns are not transferable between canvas contexts.
+        if (this.patternCache[key] && this.patternCache[key].ctx === ctx) {
+            return this.patternCache[key].pattern;
+        }
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = tileSize;
+        tempCanvas.height = tileSize;
+        const tempCtx = tempCanvas.getContext('2d');
+
+        // The drawing functions translate to the passed (x, y).
+        // By passing (0, 0), the sprite is drawn at the origin of our temporary canvas.
+        if (type === 1) {
+            this.drawGroundTile(tempCtx, 0, 0, theme);
+        } else if (type === 2) {
+            this.drawBrickBlock(tempCtx, 0, 0, theme);
+        } else {
+            return null; // Not a pattern-able tile
+        }
+
+        const pattern = ctx.createPattern(tempCanvas, 'repeat');
+        // Store the pattern and the context it belongs to.
+        this.patternCache[key] = { pattern: pattern, ctx: ctx };
+        return pattern;
+    },
+
     // 5 World Theme Color Palettes
     themes: {
         grassland: {
