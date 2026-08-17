@@ -39,8 +39,12 @@ class Level {
 
     generateLevelData() {
         if (this.isBossLevel) {
-            this.generateBossArena();
-            // Prevent normal level generation for boss levels
+            if (this.levelNum === 25) {
+                this.generateFinalBossArena();
+            } else {
+                this.generateBossArena();
+            }
+            // Prevent normal level generation for all boss levels
             return;
         }
 
@@ -155,6 +159,84 @@ class Level {
                 this.tiles[y + i][x + 1] = 5;
             }
         }
+    }
+
+    generateFinalBossArena() {
+        this.width = 80; // A wide, contained arena for the final battle.
+        this.flagpoleX = -1;
+        this.castleX = -1;
+        this.theme = 'lava';
+        const H = this.height;
+
+        // --- Background Scenery ---
+        // Add unique, ominous background elements for the final boss fight.
+        // These will be drawn with parallax scrolling in the `draw` method.
+        this.decorativeBackgrounds.push({ type: 'lava_mountain', x: 5 * this.tileSize,  y: (H - 2) * this.tileSize });
+        this.decorativeBackgrounds.push({ type: 'volcano',       x: 35 * this.tileSize, y: (H - 2) * this.tileSize });
+        this.decorativeBackgrounds.push({ type: 'lava_mountain', x: 65 * this.tileSize, y: (H - 2) * this.tileSize });
+        this.decorativeBackgrounds.push({ type: 'chain',         x: 15 * this.tileSize, y: 0 });
+        this.decorativeBackgrounds.push({ type: 'chain',         x: 58 * this.tileSize, y: 0 });
+
+        // --- Walls ---
+        // Create thick, imposing walls on both sides of the arena.
+        for (let y = 0; y < H; y++) {
+            this.tiles[y][0] = 2; // Brick
+            this.tiles[y][1] = 2;
+            this.tiles[y][this.width - 2] = 2;
+            this.tiles[y][this.width - 1] = 2;
+        }
+
+        // --- Floor with Lava Pits ---
+        // Create a ground floor with dangerous gaps.
+        for (let x = 2; x < this.width - 2; x++) {
+            // Skip sections to create lava pits.
+            if ((x >= 20 && x <= 25) || (x >= 50 && x <= 55)) {
+                continue;
+            }
+            this.tiles[H - 1][x] = 1; // Ground
+            this.tiles[H - 2][x] = 1;
+        }
+
+        // --- Platforms ---
+        // A series of platforms at various heights to encourage vertical movement.
+
+        // Low central platform over the first pit.
+        for (let x = 21; x <= 24; x++) {
+            this.tiles[H - 5][x] = 2; // Brick
+        }
+
+        // Mid-height platform on the left.
+        for (let x = 10; x <= 18; x++) {
+            this.tiles[H - 6][x] = 2; // Brick
+        }
+        // Add a power-up here for the player.
+        this.tiles[H - 10][14] = 4; // Question block high up.
+
+        // Mid-height platform on the right, over the second pit.
+        for (let x = 52; x <= 60; x++) {
+            this.tiles[H - 6][x] = 2; // Brick
+        }
+
+        // High platform on the far right, leading to the axe.
+        for (let x = this.width - 15; x < this.width - 2; x++) {
+            this.tiles[H - 8][x] = 1; // Ground
+        }
+
+        // --- Hazards & Items ---
+        // Add a moving obstacle on the left mid-platform.
+        this.movingObstacles.push(new MovingObstacle(11 * this.tileSize, (H - 7) * this.tileSize, 1.0));
+
+        // Add another moving obstacle on the right mid-platform.
+        this.movingObstacles.push(new MovingObstacle(58 * this.tileSize, (H - 7) * this.tileSize, -1.0));
+
+        // Place the Axe on the highest platform.
+        const axe = new Axe((this.width - 5) * this.tileSize, (H - 10) * this.tileSize);
+        this.items.push(axe);
+
+        // --- The Boss ---
+        // Spawn the boss in the center of the arena.
+        const boss = new Browser(40 * this.tileSize, (H - 6) * this.tileSize, this.levelNum);
+        this.enemies.push(boss);
     }
 
     generateBossArena() {
@@ -272,6 +354,15 @@ class Level {
             } else if (bg.type === 'bush') {
                 parallaxFactor = 0.8; // Bushes are closer, move faster
                 bgWidth = 45;
+            } else if (bg.type === 'lava_mountain') {
+                parallaxFactor = 0.4; // Distant mountains
+                bgWidth = 100;
+            } else if (bg.type === 'volcano') {
+                parallaxFactor = 0.35; // Volcano is furthest away
+                bgWidth = 150;
+            } else if (bg.type === 'chain') {
+                parallaxFactor = 0.7; // Chains are in the mid-ground
+                bgWidth = 20;
             }
 
             const drawX = bg.x - (cameraX * parallaxFactor);
@@ -298,6 +389,39 @@ class Level {
                 ctx.fillStyle = SpriteRenderer.themes[this.theme].bush;
                 ctx.fillRect(drawX + rustle,      bg.y + 15, 45 - rustle * 2, 15);
                 ctx.fillRect(drawX + 10, bg.y + 5,  25, 10);
+            } else if (bg.type === 'lava_mountain') {
+                ctx.fillStyle = '#2a0505'; // Very dark, almost black red
+                ctx.beginPath();
+                ctx.moveTo(drawX,       bg.y + 60);
+                ctx.lineTo(drawX + 50,  bg.y - 80); // Taller and more jagged than a hill
+                ctx.lineTo(drawX + 100, bg.y + 60);
+                ctx.fill();
+            } else if (bg.type === 'volcano') {
+                // Main volcano body
+                ctx.fillStyle = '#1a0303'; // Even darker red/black
+                ctx.beginPath();
+                ctx.moveTo(drawX,       bg.y + 60);
+                ctx.lineTo(drawX + 75,  bg.y - 120); // Very tall
+                ctx.lineTo(drawX + 150, bg.y + 60);
+                ctx.fill();
+                // Glowing lava top with a pulse effect
+                const pulse = Math.sin(now / 400) * 5;
+                ctx.fillStyle = '#ff4500'; // OrangeRed
+                ctx.shadowColor = '#ff0000';
+                ctx.shadowBlur = 15 + pulse;
+                ctx.beginPath();
+                ctx.moveTo(drawX + 60, bg.y - 110);
+                ctx.lineTo(drawX + 75, bg.y - 120);
+                ctx.lineTo(drawX + 90, bg.y - 110);
+                ctx.closePath();
+                ctx.fill();
+                ctx.shadowBlur = 0; // Reset shadow for other elements
+            } else if (bg.type === 'chain') {
+                ctx.fillStyle = '#333333'; // Dark gray for chains
+                // Draw 15 links to form a chain hanging from the top
+                for (let i = 0; i < 15; i++) {
+                    ctx.fillRect(drawX, bg.y + i * 12, 10, 8);
+                }
             }
         });
 
