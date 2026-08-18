@@ -136,10 +136,29 @@ class Level {
         }
 
         /* ── Background Scenery ── */
-        for (let x = 6; x < this.width - 20; x += 24) {
-            this.decorativeBackgrounds.push({ type: 'cloud', x: x * this.tileSize, y: 40 });
-            this.decorativeBackgrounds.push({ type: 'hill',  x: (x + 8)  * this.tileSize, y: (H - 4) * this.tileSize });
-            this.decorativeBackgrounds.push({ type: 'bush',  x: (x + 16) * this.tileSize, y: (H - 3) * this.tileSize });
+        if (this.theme === 'lava') {
+            // For the fiery fifth world, add volcanoes and chains.
+            for (let x = 10; x < this.width - 40; x += 70) {
+                this.decorativeBackgrounds.push({ type: 'volcano', x: x * this.tileSize, y: (H - 2) * this.tileSize });
+                this.decorativeBackgrounds.push({ type: 'chain', x: (x + 35) * this.tileSize, y: 0 });
+            }
+        } else if (this.theme === 'cavern') {
+            // For the cavern world, add stalactites, stalagmites, and crystals.
+            for (let x = 15; x < this.width - 30; x += 35) {
+                // Add a stalactite hanging from the ceiling
+                this.decorativeBackgrounds.push({ type: 'stalactite', x: (x + 5) * this.tileSize, y: 0 });
+                // Add a stalagmite rising from the floor
+                this.decorativeBackgrounds.push({ type: 'stalagmite', x: (x + 18) * this.tileSize, y: (H - 2) * this.tileSize });
+                // Add a glowing crystal formation
+                this.decorativeBackgrounds.push({ type: 'crystal', x: (x + 28) * this.tileSize, y: (H - 3) * this.tileSize });
+            }
+        } else {
+            // Default scenery for other worlds (grassland, cavern, etc.)
+            for (let x = 6; x < this.width - 20; x += 24) {
+                this.decorativeBackgrounds.push({ type: 'cloud', x: x * this.tileSize, y: 40 });
+                this.decorativeBackgrounds.push({ type: 'hill',  x: (x + 8)  * this.tileSize, y: (H - 4) * this.tileSize });
+                this.decorativeBackgrounds.push({ type: 'bush',  x: (x + 16) * this.tileSize, y: (H - 3) * this.tileSize });
+            }
         }
     }
 
@@ -162,81 +181,78 @@ class Level {
     }
 
     generateFinalBossArena() {
-        this.width = 80; // A wide, contained arena for the final battle.
+        this.width = 180;
         this.flagpoleX = -1;
         this.castleX = -1;
         this.theme = 'lava';
         const H = this.height;
 
-        // --- Background Scenery ---
-        // Add unique, ominous background elements for the final boss fight.
-        // These will be drawn with parallax scrolling in the `draw` method.
-        this.decorativeBackgrounds.push({ type: 'lava_mountain', x: 5 * this.tileSize,  y: (H - 2) * this.tileSize });
-        this.decorativeBackgrounds.push({ type: 'volcano',       x: 35 * this.tileSize, y: (H - 2) * this.tileSize });
-        this.decorativeBackgrounds.push({ type: 'lava_mountain', x: 65 * this.tileSize, y: (H - 2) * this.tileSize });
-        this.decorativeBackgrounds.push({ type: 'chain',         x: 15 * this.tileSize, y: 0 });
-        this.decorativeBackgrounds.push({ type: 'chain',         x: 58 * this.tileSize, y: 0 });
-
-        // --- Walls ---
-        // Create thick, imposing walls on both sides of the arena.
-        for (let y = 0; y < H; y++) {
-            this.tiles[y][0] = 2; // Brick
-            this.tiles[y][1] = 2;
-            this.tiles[y][this.width - 2] = 2;
-            this.tiles[y][this.width - 1] = 2;
+        // --- Background: A truly hellish and epic backdrop ---
+        this.decorativeBackgrounds = [];
+        this.decorativeBackgrounds.push({ type: 'volcano', x: 30 * this.tileSize, y: (H - 2) * this.tileSize });
+        this.decorativeBackgrounds.push({ type: 'volcano', x: 90 * this.tileSize, y: (H - 2) * this.tileSize });
+        this.decorativeBackgrounds.push({ type: 'volcano', x: 150 * this.tileSize, y: (H - 2) * this.tileSize });
+        for (let i = 0; i < 12; i++) {
+            this.decorativeBackgrounds.push({ type: 'chain', x: (10 + i * 14) * this.tileSize, y: 0 });
         }
 
-        // --- Floor with Lava Pits ---
-        // Create a ground floor with dangerous gaps.
-        for (let x = 2; x < this.width - 2; x++) {
-            // Skip sections to create lava pits.
-            if ((x >= 20 && x <= 25) || (x >= 50 && x <= 55)) {
-                continue;
-            }
-            this.tiles[H - 1][x] = 1; // Ground
+        // === PHASE 1: The Approach (x: 0-50) ===
+        // A classic platforming section to warm up the player.
+        for (let x = 0; x < 10; x++) { this.tiles[H - 2][x] = 1; } // Start platform
+        this.tiles[H - 6][8] = 4; // Starting power-up
+
+        this.tiles[H - 3][15] = 2; this.tiles[H - 3][16] = 2; this.tiles[H - 3][17] = 2;
+        this.tiles[H - 4][25] = 2;
+        for (let x = 32; x < 36; x++) { this.tiles[H - 2][x] = 1; }
+        this.enemies.push(new Goomba(33 * this.tileSize, (H - 4) * this.tileSize));
+        for (let x = 40; x < 45; x++) { this.tiles[H - 3][x] = 2; }
+
+        // === PHASE 2: The Spire Climb (x: 50-90) ===
+        // A vertical challenge testing precise jumping.
+        for (let x = 50; x < 60; x++) { this.tiles[H - 2][x] = 1; } // Checkpoint platform
+        for (let x = 65; x < 69; x++) { this.tiles[H - 4][x] = 2; } // Step 1
+        for (let x = 58; x < 62; x++) { this.tiles[H - 7][x] = 2; } // Step 2
+        this.movingObstacles.push(new MovingObstacle(58 * this.tileSize, (H - 8) * this.tileSize, 0.6)); // Patrolling hazard
+        for (let x = 65; x < 69; x++) { this.tiles[H - 10][x] = 2; } // Step 3
+        for (let x = 75; x < 85; x++) { this.tiles[H - 10][x] = 1; } // High platform after climb
+
+        // === PHASE 3: The Descent (x: 90-120) ===
+        // A clear, safe path connecting the high point to the low point. THIS FIXES THE BUG.
+        for (let x = 90; x < 93; x++) { this.tiles[H - 8][x] = 2; } // Step down 1
+        for (let x = 97; x < 100; x++) { this.tiles[H - 6][x] = 2; } // Step down 2
+        for (let x = 104; x < 107; x++) { this.tiles[H - 4][x] = 2; } // Step down 3
+        for (let x = 110; x < 120; x++) { this.tiles[H - 2][x] = 1; } // Solid ground leading into the arena
+        this.tiles[H - 5][115] = 4; // Final power-up before the boss
+
+        // === PHASE 4: Bowser's Throne Room (x: 120-180) ===
+        // The final confrontation in a dedicated, multi-tiered arena.
+        for (let y = 0; y < H; y++) { // Enclosing walls
+            this.tiles[y][120] = 2;
+            this.tiles[y][this.width - 1] = 2;
+        }
+        for (let x = 121; x < this.width - 1; x++) { // Arena floor with central pit
+            if (x >= 145 && x <= 155) continue; // Central lava pit
             this.tiles[H - 2][x] = 1;
         }
 
-        // --- Platforms ---
-        // A series of platforms at various heights to encourage vertical movement.
+        // Platforms inside the arena for verticality.
+        for (let x = 125; x < 135; x++) { this.tiles[H - 5][x] = 2; } // Lower left platform
+        for (let x = 160; x < 170; x++) { this.tiles[H - 5][x] = 2; } // Lower right platform
+        for (let x = 138; x < 148; x++) { this.tiles[H - 8][x] = 2; } // Upper central platform
 
-        // Low central platform over the first pit.
-        for (let x = 21; x <= 24; x++) {
-            this.tiles[H - 5][x] = 2; // Brick
-        }
-
-        // Mid-height platform on the left.
-        for (let x = 10; x <= 18; x++) {
-            this.tiles[H - 6][x] = 2; // Brick
-        }
-        // Add a power-up here for the player.
-        this.tiles[H - 10][14] = 4; // Question block high up.
-
-        // Mid-height platform on the right, over the second pit.
-        for (let x = 52; x <= 60; x++) {
-            this.tiles[H - 6][x] = 2; // Brick
-        }
-
-        // High platform on the far right, leading to the axe.
-        for (let x = this.width - 15; x < this.width - 2; x++) {
-            this.tiles[H - 8][x] = 1; // Ground
-        }
-
-        // --- Hazards & Items ---
-        // Add a moving obstacle on the left mid-platform.
-        this.movingObstacles.push(new MovingObstacle(11 * this.tileSize, (H - 7) * this.tileSize, 1.0));
-
-        // Add another moving obstacle on the right mid-platform.
-        this.movingObstacles.push(new MovingObstacle(58 * this.tileSize, (H - 7) * this.tileSize, -1.0));
-
-        // Place the Axe on the highest platform.
+        // The Axe, placed on a high pedestal on the far right.
+        for (let x = this.width - 8; x < this.width - 1; x++) { this.tiles[H - 8][x] = 1; }
         const axe = new Axe((this.width - 5) * this.tileSize, (H - 10) * this.tileSize);
         this.items.push(axe);
 
-        // --- The Boss ---
-        // Spawn the boss in the center of the arena.
-        const boss = new Browser(40 * this.tileSize, (H - 6) * this.tileSize, this.levelNum);
+        // --- The Final Boss ---
+        const boss = new Browser(130 * this.tileSize, (H - 6) * this.tileSize, this.levelNum);
+        boss.hp = 25; // Make the final boss truly challenging
         this.enemies.push(boss);
+
+        // Add minions for extra chaos.
+        this.enemies.push(new Koopa(150 * this.tileSize, (H - 4) * this.tileSize));
+        this.enemies.push(new Goomba(165 * this.tileSize, (H - 4) * this.tileSize));
     }
 
     generateBossArena() {
@@ -363,6 +379,15 @@ class Level {
             } else if (bg.type === 'chain') {
                 parallaxFactor = 0.7; // Chains are in the mid-ground
                 bgWidth = 20;
+            } else if (bg.type === 'stalactite') {
+                parallaxFactor = 0.5; // Mid-background
+                bgWidth = 20;
+            } else if (bg.type === 'stalagmite') {
+                parallaxFactor = 0.7; // Closer background
+                bgWidth = 20;
+            } else if (bg.type === 'crystal') {
+                parallaxFactor = 0.85; // Foreground, moves fast
+                bgWidth = 30;
             }
 
             const drawX = bg.x - (cameraX * parallaxFactor);
@@ -422,6 +447,36 @@ class Level {
                 for (let i = 0; i < 15; i++) {
                     ctx.fillRect(drawX, bg.y + i * 12, 10, 8);
                 }
+            } else if (bg.type === 'stalactite') {
+                ctx.fillStyle = '#4a3a4a'; // Dark, desaturated purple-brown
+                ctx.beginPath();
+                ctx.moveTo(drawX, bg.y);
+                ctx.lineTo(drawX + 10, bg.y + 70); // Long and pointy
+                ctx.lineTo(drawX + 20, bg.y);
+                ctx.fill();
+            } else if (bg.type === 'stalagmite') {
+                ctx.fillStyle = '#5a4a5a'; // Slightly lighter purple-brown
+                ctx.beginPath();
+                ctx.moveTo(drawX, bg.y + 60);
+                ctx.lineTo(drawX + 8, bg.y + 10); // Shorter and wider
+                ctx.lineTo(drawX + 16, bg.y + 60);
+                ctx.fill();
+            } else if (bg.type === 'crystal') {
+                const pulse = Math.sin(now / 500 + bg.x / 80) * 6;
+                ctx.fillStyle = '#c084fc'; // A light purple for the crystal body
+                ctx.shadowColor = '#a855f7'; // The main theme purple for the glow
+                ctx.shadowBlur = 10 + pulse;
+                // Main crystal point
+                ctx.beginPath();
+                ctx.moveTo(drawX + 15, bg.y - 5);
+                ctx.lineTo(drawX + 25, bg.y + 20);
+                ctx.lineTo(drawX + 5,  bg.y + 20);
+                ctx.closePath();
+                ctx.fill();
+                // Smaller side crystal
+                ctx.fillRect(drawX, bg.y + 10, 10, 10);
+                
+                ctx.shadowBlur = 0; // Reset shadow for other elements
             }
         });
 
