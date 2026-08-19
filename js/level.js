@@ -253,6 +253,16 @@ class Level {
         // Add minions for extra chaos.
         this.enemies.push(new Koopa(150 * this.tileSize, (H - 4) * this.tileSize));
         this.enemies.push(new Goomba(165 * this.tileSize, (H - 4) * this.tileSize));
+        // Add a second Koopa on the right platform for more pressure.
+        this.enemies.push(new Koopa(162 * this.tileSize, (H - 7) * this.tileSize));
+
+        // Add a flying enemy to patrol the upper arena, making vertical movement riskier.
+        const flyingEnemy = new FlyingEnemy(140 * this.tileSize, (H - 10) * this.tileSize);
+        flyingEnemy.vx = 1.8; // Make it a bit faster for the final fight
+        this.enemies.push(flyingEnemy);
+
+        // Add a patrolling hazard on the floor to restrict safe ground space.
+        this.movingObstacles.push(new MovingObstacle(125 * this.tileSize, (H - 4) * this.tileSize, 1.5));
     }
 
     generateBossArena() {
@@ -261,10 +271,12 @@ class Level {
         this.castleX = -1; // No castle
         const H = this.height;
 
+        const wallWidth = 4; // How many tiles thick the walls are.
+
         // Solid floor with a central lava pit
         const pitStart = Math.floor(this.width / 2) - 4;
         const pitEnd = pitStart + 8;
-        for (let x = 0; x < this.width; x++) {
+        for (let x = wallWidth; x < this.width - wallWidth; x++) {
             // Create a pit in the middle by NOT adding floor tiles
             if (x >= pitStart && x < pitEnd) continue;
             this.tiles[H - 1][x] = 1;
@@ -281,7 +293,6 @@ class Level {
         this.tiles[H - 5][platformCenter + 2] = 2; // Brick
 
         // Create thicker, more visually appealing walls using brick tiles.
-        const wallWidth = 4; // How many tiles thick the walls are.
         for (let y = 0; y < H; y++) {
             for (let i = 0; i < wallWidth; i++) {
                 this.tiles[y][i] = 2; // Left wall (brick tile)
