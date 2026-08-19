@@ -135,6 +135,7 @@ class GameEngine {
         document.getElementById('buy-life-btn').addEventListener('click',   () => this.buyItem('life'));
         document.getElementById('buy-speed-btn').addEventListener('click',  () => this.buyItem('speed'));
         document.getElementById('buy-star-btn').addEventListener('click',   () => this.buyItem('star'));
+        document.getElementById('buy-hammer-btn').addEventListener('click', () => this.buyItem('hammer'));
     }
 
     /* ─── Input ─── */
@@ -147,7 +148,13 @@ class GameEngine {
             case 'ArrowDown':  case 'KeyS':  this.keys.down  = true; break;
             case 'ShiftLeft':  case 'ShiftRight': case 'KeyX':
                 if (this.state === 'PLAYING') {
-                    this.shootFireball();
+                    // Prioritize shooting fireballs if Fiery, otherwise use hammer if available.
+                    // Both actions use the same cooldown mechanism.
+                    if (this.player.isFiery) {
+                        this.shootFireball();
+                    } else if (this.player.hasHammerPower) {
+                        this.useHammer();
+                    }
                 }
                 this.keys.run = true;
                 break;
@@ -302,6 +309,11 @@ class GameEngine {
             this.player.starTimer = 900;
             this.particles.push(new FloatingText(particleX, particleY, 'STAR POWER!', '#fcd000'));
             purchased = true;
+        } else if (itemType === 'hammer' && this.coins >= 12 && canBuyPlayerItems && !this.player.hasHammerPower) {
+            this.coins -= 12;
+            this.player.hasHammerPower = true;
+            this.particles.push(new FloatingText(particleX, particleY, 'HAMMER TIME!', '#a0522d'));
+            purchased = true;
         }
         if (purchased) {
             try { AudioSystem.playBuySound(); } catch(e) { try { AudioSystem.playCoin(); } catch(e2) {} }
@@ -324,6 +336,7 @@ class GameEngine {
         document.getElementById('buy-life-btn').disabled   = this.coins < 10;
         document.getElementById('buy-speed-btn').disabled  = this.coins < 8 || !canBuyPlayerItems;
         document.getElementById('buy-star-btn').disabled   = this.coins < 15 || !canBuyPlayerItems;
+        document.getElementById('buy-hammer-btn').disabled = this.coins < 12 || !canBuyPlayerItems || this.player.hasHammerPower;
     }
 
     /* ─── Block Bump Handler ─── */
@@ -346,7 +359,7 @@ class GameEngine {
                 try { AudioSystem.playCoin(); } catch(e) {}
             }
         } else if (tile.isBrick) {
-            if (this.player.isBig) {
+            if (this.player.isBig || this.player.hasHammerPower) { // Player can break brick if big OR has hammer power
                 this.level.setTile(tx, ty, 0);
                 this.score += 50;
                 try { AudioSystem.playBreak(); } catch(e) {}
@@ -374,6 +387,44 @@ class GameEngine {
         this.player.canShoot = false;
         this.player.shootCooldown = 20; // Cooldown managed on player
         try { AudioSystem.playFireballSound(); } catch(e) {}
+    }
+
+    useHammer() {
+        if (!this.player || !this.player.canShoot) return; // Reuse canShoot/shootCooldown
+
+        const player = this.player;
+        const level = this.level;
+        const tileSize = level.tileSize;
+
+        // Determine target tile in front of the player based on their facing direction.
+        const checkX = player.facing === 1
+            ? Math.floor((player.x + player.w + 1) / tileSize)
+            : Math.floor((player.x - 1) / tileSize);
+
+        // Check the column of tiles at the player's height.
+        const startTileY = Math.floor(player.y / tileSize);
+        const endTileY = Math.floor((player.y + player.h - 1) / tileSize);
+
+        for (let ty = startTileY; ty <= endTileY; ty++) {
+            const tile = level.getTile(checkX, ty);
+            if (tile && tile.isBrick) {
+                // Found a brick to break.
+                level.setTile(checkX, ty, 0);
+                this.score += 50;
+                try { AudioSystem.playBreak(); } catch(e) {}
+
+                // Create brick break particles for visual feedback.
+                const bx = checkX * tileSize, by = ty * tileSize;
+                this.particles.push(new BrickParticle(bx - this.cameraX, by, player.facing * 2, -5));
+                this.particles.push(new BrickParticle(bx + 15 - this.cameraX, by, player.facing * 4, -5));
+
+                // Set a cooldown to prevent rapid-fire breaking.
+                player.canShoot = false;
+                player.shootCooldown = 20; // Same cooldown as fireball.
+
+                return; // Only break one block per key press.
+            }
+        }
     }
 
     tryEnterPipe() {
