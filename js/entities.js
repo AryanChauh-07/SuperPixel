@@ -37,6 +37,7 @@ class Player extends Entity {
         this.isEnteringPipe   = false;
         this.canShoot         = true;
         this.shootCooldown    = 0;
+        this.hasHammerPower   = false;
 
         this.walkSpeed  = 3.5;
         this.runSpeed   = 5.6;
@@ -168,12 +169,13 @@ class Player extends Entity {
     }
 
     draw(ctx) {
+        // Don't show hammer while growing to avoid visual glitches.
         if (this.isGrowing && Math.floor(this.growTimer / 4) % 2 === 0) {
-            SpriteRenderer.drawSmallHero(ctx, this.x, this.y, 'idle', this.facing, false, false);
+            SpriteRenderer.drawSmallHero(ctx, this.x, this.y, 'idle', this.facing, false, false, false);
         } else if (this.isBig) {
-            SpriteRenderer.drawBigHero(ctx, this.x, this.y, this.animFrame, this.facing, this.isInvincible, this.isStarInvincible, this.isFiery);
+            SpriteRenderer.drawBigHero(ctx, this.x, this.y, this.animFrame, this.facing, this.isInvincible, this.isStarInvincible, this.isFiery, this.hasHammerPower);
         } else {
-            SpriteRenderer.drawSmallHero(ctx, this.x, this.y, this.animFrame, this.facing, this.isInvincible, this.isStarInvincible);
+            SpriteRenderer.drawSmallHero(ctx, this.x, this.y, this.animFrame, this.facing, this.isInvincible, this.isStarInvincible, this.hasHammerPower);
         }
     }
 }
