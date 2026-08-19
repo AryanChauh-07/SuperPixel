@@ -91,7 +91,7 @@ const SpriteRenderer = {
     /**
      * Draw Classic Small Mario (24x24)
      */
-    drawSmallHero(ctx, x, y, frame = 'idle', facing = 1, isInvincible = false, isStar = false) {
+    drawSmallHero(ctx, x, y, frame = 'idle', facing = 1, isInvincible = false, isStar = false, hasHammer = false) {
         ctx.save();
         ctx.translate(x, y);
         if (facing === -1) {
@@ -157,13 +157,18 @@ const SpriteRenderer = {
             ctx.fillRect(12, 19, 7, 5);
         }
 
+        // Add hammer if player has it, but not during star power to reduce visual clutter.
+        if (hasHammer && !isStar) {
+            this.drawHammerAccessory(ctx, 6, 15);
+        }
+
         ctx.restore();
     },
 
     /**
      * Draw Classic Big Mario (24x48)
      */
-    drawBigHero(ctx, x, y, frame = 'idle', facing = 1, isInvincible = false, isStar = false, isFiery = false) {
+    drawBigHero(ctx, x, y, frame = 'idle', facing = 1, isInvincible = false, isStar = false, isFiery = false, hasHammer = false) {
         ctx.save();
         ctx.translate(x, y);
         if (facing === -1) {
@@ -265,6 +270,15 @@ const SpriteRenderer = {
             } else {
                 ctx.fillRect(3, 39, 8, 9);
                 ctx.fillRect(12, 39, 8, 9);
+            }
+        }
+
+        // Add hammer if player has it, but not during star power to reduce visual clutter.
+        if (hasHammer && !isStar) {
+            if (frame === 'crouch') {
+                this.drawHammerAccessory(ctx, 8, 18);
+            } else {
+                this.drawHammerAccessory(ctx, 8, 28);
             }
         }
 
@@ -671,6 +685,30 @@ const SpriteRenderer = {
         ctx.lineTo(10, 6);
         ctx.closePath();
         ctx.fill();
+
+        ctx.restore();
+    },
+
+    /**
+     * Draw a hammer accessory on the player's back.
+     * This is drawn within the player's transformed context.
+     */
+    drawHammerAccessory(ctx, attachX, attachY) {
+        const handleColor = '#8B4513'; // SaddleBrown
+        const headColor = '#A9A9A9';   // DarkGray
+
+        ctx.save();
+        // Position the hammer on the player's back, slightly angled.
+        ctx.translate(attachX, attachY);
+        ctx.rotate(-0.4); // ~23 degrees
+
+        // Handle
+        ctx.fillStyle = handleColor;
+        ctx.fillRect(-8, 0, 16, 4);
+
+        // Head
+        ctx.fillStyle = headColor;
+        ctx.fillRect(-12, -4, 8, 12);
 
         ctx.restore();
     },
