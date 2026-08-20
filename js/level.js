@@ -230,8 +230,7 @@ class Level {
             this.tiles[y][120] = 2;
             this.tiles[y][this.width - 1] = 2;
         }
-        for (let x = 121; x < this.width - 1; x++) { // Arena floor with central pit
-            if (x >= 145 && x <= 155) continue; // Central lava pit
+        for (let x = 121; x < this.width - 1; x++) { // Arena floor fills the full gap between the walls.
             this.tiles[H - 2][x] = 1;
         }
 
@@ -273,19 +272,16 @@ class Level {
 
         const wallWidth = 4; // How many tiles thick the walls are.
 
-        // Solid floor with a central lava pit
+        // Solid floor fills the gap between the walls.
         const pitStart = Math.floor(this.width / 2) - 4;
         const pitEnd = pitStart + 8;
         for (let x = wallWidth; x < this.width - wallWidth; x++) {
-            // Create a pit in the middle by NOT adding floor tiles
-            if (x >= pitStart && x < pitEnd) continue;
             this.tiles[H - 1][x] = 1;
             this.tiles[H - 2][x] = 1;
         }
 
-        // Add a helpful power-up block over the pit, making it easier to reach.
-        // This gives the player a chance to recover or power-up during the fight.
-        const platformCenter = pitStart + 3; // Move platform left to significantly reduce the jump gap.
+        // Keep a centered power-up platform to help the player without leaving a gap in the floor.
+        const platformCenter = pitStart + 3;
         this.tiles[H - 5][platformCenter - 2] = 2; // Lower the platform to make it easily reachable.
         this.tiles[H - 5][platformCenter - 1] = 2; // Brick
         this.tiles[H - 5][platformCenter]     = 4; // Question block with mushroom/flower
