@@ -18,6 +18,9 @@ const SpriteRenderer = {
         tempCanvas.height = tileSize;
         const tempCtx = tempCanvas.getContext('2d');
 
+        tempCtx.save();
+        tempCtx.scale(tileSize / 24, tileSize / 24);
+
         // The drawing functions translate to the passed (x, y).
         // By passing (0, 0), the sprite is drawn at the origin of our temporary canvas.
         if (type === 1) {
@@ -25,8 +28,10 @@ const SpriteRenderer = {
         } else if (type === 2) {
             this.drawBrickBlock(tempCtx, 0, 0, theme);
         } else {
+            tempCtx.restore();
             return null; // Not a pattern-able tile
         }
+        tempCtx.restore();
 
         const pattern = ctx.createPattern(tempCanvas, 'repeat');
         // Store the pattern and the context it belongs to.
