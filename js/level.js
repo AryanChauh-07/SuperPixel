@@ -527,9 +527,17 @@ class Level {
                         const currentType = this.tiles[ty][tx + i];
 
                         if (currentType === 3 || currentType === 4) {
-                            SpriteRenderer.drawQuestionBlock(ctx, currentDrawX, drawY, false, this.theme);
+                            ctx.save();
+                            ctx.translate(currentDrawX, drawY);
+                            ctx.scale(this.tileSize / 24, this.tileSize / 24);
+                            SpriteRenderer.drawQuestionBlock(ctx, 0, 0, false, this.theme);
+                            ctx.restore();
                         } else if (currentType === 9) {
-                            SpriteRenderer.drawQuestionBlock(ctx, currentDrawX, drawY, true, this.theme);
+                            ctx.save();
+                            ctx.translate(currentDrawX, drawY);
+                            ctx.scale(this.tileSize / 24, this.tileSize / 24);
+                            SpriteRenderer.drawQuestionBlock(ctx, 0, 0, true, this.theme);
+                            ctx.restore();
                         } else if (currentType === 5 || currentType === 6) {
                             const tileAbove = this.getTile(tx + i, ty - 1);
                             if (!tileAbove || !tileAbove.isPipe) {
