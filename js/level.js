@@ -186,6 +186,9 @@ class Level {
         this.castleX = -1;
         this.theme = 'lava';
         const H = this.height;
+        const wallWidth = 4;
+        const arenaStart = 120;
+        const arenaEnd = this.width - wallWidth;
 
         // --- Background: A truly hellish and epic backdrop ---
         this.decorativeBackgrounds = [];
@@ -227,10 +230,12 @@ class Level {
         // === PHASE 4: Bowser's Throne Room (x: 120-180) ===
         // The final confrontation in a dedicated, multi-tiered arena.
         for (let y = 0; y < H; y++) { // Enclosing walls
-            this.tiles[y][120] = 2;
-            this.tiles[y][this.width - 1] = 2;
+            for (let i = 0; i < wallWidth; i++) {
+                this.tiles[y][arenaStart + i] = 2;
+                this.tiles[y][this.width - 1 - i] = 2;
+            }
         }
-        for (let x = 121; x < this.width - 1; x++) { // Arena floor fills the full gap between the walls.
+        for (let x = arenaStart + wallWidth; x < arenaEnd; x++) { // Keep a consistent corridor between the walls.
             this.tiles[H - 2][x] = 1;
         }
 
@@ -240,7 +245,7 @@ class Level {
         for (let x = 138; x < 148; x++) { this.tiles[H - 8][x] = 2; } // Upper central platform
 
         // The Axe, placed on a high pedestal on the far right.
-        for (let x = this.width - 8; x < this.width - 1; x++) { this.tiles[H - 8][x] = 1; }
+        for (let x = this.width - 8; x < arenaEnd; x++) { this.tiles[H - 8][x] = 1; }
         const axe = new Axe((this.width - 5) * this.tileSize, (H - 10) * this.tileSize);
         this.items.push(axe);
 
@@ -352,6 +357,51 @@ class Level {
         }
     }
 
+    drawBossWalls(ctx, cameraX, viewportWidth, viewportHeight) {
+        const wallWidth = 4;
+        const leftWall = this.levelNum === 25 ? 120 : 0;
+        const rightWall = this.width - wallWidth;
+        const palette = SpriteRenderer.themes[this.theme];
+        const wallHeight = this.height * this.tileSize;
+        const wallPositions = [leftWall, rightWall];
+
+        wallPositions.forEach(wallX => {
+            const screenX = wallX * this.tileSize - cameraX;
+            if (screenX > viewportWidth || screenX + wallWidth * this.tileSize < 0) return;
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(screenX - 6, 0, wallWidth * this.tileSize + 12, wallHeight);
+            ctx.fillStyle = palette.groundBody;
+            ctx.fillRect(screenX, 0, wallWidth * this.tileSize, wallHeight);
+
+            for (let row = 0; row < this.height; row++) {
+                for (let column = 0; column < wallWidth; column++) {
+                    const blockX = screenX + column * this.tileSize;
+                    const blockY = row * this.tileSize;
+                    const blockColor = (row + column) % 3 === 0 ? palette.brick : palette.groundBody;
+
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+                    ctx.fillRect(blockX + 1, blockY + 1, this.tileSize - 2, this.tileSize - 2);
+                    ctx.fillStyle = blockColor;
+                    ctx.fillRect(blockX + 3, blockY + 3, this.tileSize - 6, this.tileSize - 6);
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.fillRect(blockX + 5, blockY + 5, this.tileSize - 10, 3);
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+                    ctx.fillRect(blockX + 4, blockY + this.tileSize - 6, this.tileSize - 8, 3);
+                }
+            }
+
+            ctx.fillStyle = palette.groundTop;
+            ctx.fillRect(screenX, 0, wallWidth * this.tileSize, 8);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+            ctx.fillRect(screenX + 4, 8, wallWidth * this.tileSize - 8, 3);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+            ctx.fillRect(screenX, wallHeight - 6, wallWidth * this.tileSize, 6);
+            ctx.fillStyle = palette.question;
+            ctx.fillRect(screenX + 5, wallHeight - 9, wallWidth * this.tileSize - 10, 3);
+        });
+    }
+
     /* ── Update moving obstacles (called from game loop, NOT draw) ── */
     updateMovingObstacles() {
         this.movingObstacles.forEach(obs => obs.update());
@@ -360,6 +410,20 @@ class Level {
     draw(ctx, cameraX, viewportWidth, viewportHeight) {
         const startTx = Math.max(0, Math.floor(cameraX / this.tileSize));
         const endTx   = Math.min(this.width - 1, Math.ceil((cameraX + viewportWidth) / this.tileSize));
+
+        // Keep the space inside boss walls filled with the active sky color.
+        if (this.isBossLevel) {
+            const wallWidth = 4;
+            const arenaStart = this.levelNum === 25 ? 120 : 0;
+            const arenaEnd = this.width - wallWidth;
+            ctx.fillStyle = SpriteRenderer.themes[this.theme].sky;
+            ctx.fillRect(
+                arenaStart * this.tileSize - cameraX,
+                0,
+                (arenaEnd - arenaStart - wallWidth) * this.tileSize,
+                viewportHeight
+            );
+        }
 
         /* Background Scenery with Parallax Scrolling for depth */
         const now = Date.now(); // Add a time source for animations
@@ -551,6 +615,10 @@ class Level {
                 // Move to the next tile after the run we just processed.
                 tx += runWidth;
             }
+        }
+
+        if (this.isBossLevel) {
+            this.drawBossWalls(ctx, cameraX, viewportWidth, viewportHeight);
         }
 
         /* Draw Moving Obstacles */
